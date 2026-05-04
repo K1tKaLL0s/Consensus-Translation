@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy import ForeignKey, Integer, String, Text, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -42,4 +42,9 @@ class GlossaryMaster(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     term_key: Mapped[str] = mapped_column(String(255), nullable=False)
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
+    status: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="active",
+        server_default=text("'active'"),
+    )
