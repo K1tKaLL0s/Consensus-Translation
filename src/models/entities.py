@@ -40,11 +40,36 @@ class ConsensusLog(Base):
 class GlossaryMaster(Base):
     __tablename__ = "glossary_master"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    glossary_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     term_key: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[str] = mapped_column(
         String(32),
         nullable=False,
         default="active",
         server_default=text("'active'"),
+    )
+
+
+class DomainSourceCatalog(Base):
+    __tablename__ = "domain_source_catalog"
+
+    source_catalog_id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+    source_name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+
+
+class GlossaryScopeMap(Base):
+    __tablename__ = "glossary_scope_map"
+
+    scope_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    glossary_id: Mapped[int] = mapped_column(
+        ForeignKey("glossary_master.glossary_id"),
+        nullable=False,
+    )
+    source_catalog_id: Mapped[int] = mapped_column(
+        ForeignKey("domain_source_catalog.source_catalog_id"),
+        nullable=False,
     )
