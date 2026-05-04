@@ -11,6 +11,23 @@ class LLMRouter:
         "watsonx": "WATSONX_API_KEY",
     }
 
+    def __init__(self, allow_mock_fallback: bool | None = None) -> None:
+        if allow_mock_fallback is None:
+            allow_mock_fallback = self._allow_mock_fallback_from_env()
+        self.allow_mock_fallback = allow_mock_fallback
+
+    def _allow_mock_fallback_from_env(self) -> bool:
+        raw = os.getenv("MAATCS_ALLOW_MOCK_FALLBACK")
+        if raw is None:
+            return True
+
+        normalized = raw.strip().lower()
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        return True
+
     def resolve_provider(self, provider: str) -> str:
         normalized = provider.strip().lower()
         if normalized not in self._PROVIDER_ENV_MAP:
@@ -25,5 +42,10 @@ class LLMRouter:
     def generate(self, provider: str, prompt: str) -> str:
         resolved = self.resolve_provider(provider)
         if not self._has_key(resolved):
+            if not self.allow_mock_fallback:
+                env_name = self._PROVIDER_ENV_MAP[resolved]
+                raise ValueError(
+                    f"{env_name} is required when mock fallback is disabled"
+                )
             return f"[MOCK:{resolved}] {prompt}"
         return f"[REAL:{resolved}] {prompt}"
