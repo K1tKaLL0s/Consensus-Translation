@@ -1,4 +1,5 @@
 import pytest
+from sqlalchemy import UniqueConstraint
 
 from src.models.entities import Base, DomainSourceCatalog, GlossaryScopeMap
 from src.services.glossary_service import normalize_source_name, validate_export_format
@@ -25,6 +26,20 @@ def test_glossary_scope_map_foreign_keys_target_expected_columns() -> None:
 
     assert "glossary_master.glossary_id" in glossary_fk_targets
     assert "domain_source_catalog.source_catalog_id" in source_fk_targets
+
+
+def test_glossary_scope_map_has_unique_constraint_on_glossary_and_source() -> None:
+    unique_constraints = [
+        constraint
+        for constraint in GlossaryScopeMap.__table__.constraints
+        if isinstance(constraint, UniqueConstraint)
+    ]
+
+    assert any(
+        tuple(column.name for column in constraint.columns)
+        == ("glossary_id", "source_catalog_id")
+        for constraint in unique_constraints
+    )
 
 
 def test_normalize_source_name_strips_whitespace() -> None:

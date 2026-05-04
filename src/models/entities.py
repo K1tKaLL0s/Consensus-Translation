@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, Integer, String, Text, text
+from sqlalchemy import ForeignKey, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -63,6 +63,7 @@ class DomainSourceCatalog(Base):
 
 class GlossaryScopeMap(Base):
     __tablename__ = "glossary_scope_map"
+    __table_args__ = (UniqueConstraint("glossary_id", "source_catalog_id"),)
 
     scope_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     glossary_id: Mapped[int] = mapped_column(
