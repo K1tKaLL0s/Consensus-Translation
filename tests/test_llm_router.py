@@ -11,9 +11,9 @@ def test_unknown_provider_raises_value_error() -> None:
 
 
 def test_generate_without_key_returns_mock_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
-    router = LLMRouter()
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("MAATCS_ALLOW_MOCK_FALLBACK", raising=False)
+    router = LLMRouter()
 
     result = router.generate("gpt", "hello")
 
