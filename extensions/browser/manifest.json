@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Cn-Jp Translate MVP",
+  "version": "0.1.0",
+  "description": "MVP popup for text + source declaration to /tasks/translate",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Cn-Jp Translate MVP"
+  },
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:8000/*"
+  ]
+}
