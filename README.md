@@ -42,6 +42,12 @@ streamlit run src/ui/web_app/streamlit_app.py
 
 ## 启动方式
 
+也可以使用统一启动脚本（PowerShell）：
+
+```powershell
+.\run.ps1 -Init
+```
+
 ### 1) 启动 API
 
 ```bash

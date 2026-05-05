@@ -1,5 +1,10 @@
+from pathlib import Path
+
 from src.tools import bootstrap_mysql as bootstrap_module
 from src.tools.bootstrap_mysql import check_llm_keys, suggest_mysql_actions
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_suggest_mysql_actions_when_mysql_not_installed_contains_package_manager_hints() -> None:
@@ -118,3 +123,13 @@ def test_create_database_if_needed_executes_create_database_sql(monkeypatch) -> 
     bootstrap_module._create_database_if_needed()
 
     assert any("CREATE DATABASE IF NOT EXISTS" in sql for sql in executed)
+
+
+def test_readme_documents_run_ps1_init_entrypoint() -> None:
+    readme_path = ROOT / "README.md"
+
+    assert readme_path.exists()
+
+    content = readme_path.read_text(encoding="utf-8")
+
+    assert ".\\run.ps1 -Init" in content
