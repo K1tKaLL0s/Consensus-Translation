@@ -1,3 +1,5 @@
+import asyncio
+
 from src.core.agent_orchestrator import MAATCSOrchestrator
 
 
@@ -63,9 +65,11 @@ def test_run_builds_state_with_consensus(monkeypatch) -> None:
 
     orchestrator = MAATCSOrchestrator()
 
-    state = orchestrator.run(
-        raw_text="機械翻訳の品質評価",
-        source_declaration="human_declaration",
+    state = asyncio.run(
+        orchestrator.run(
+            raw_text="機械翻訳の品質評価",
+            source_declaration="human_declaration",
+        )
     )
 
     assert "consensus" in state
@@ -98,6 +102,40 @@ def test_run_passthrough_source_declaration(monkeypatch) -> None:
         },
     )
 
-    state = MAATCSOrchestrator().run("原文", "declared-by-user")
+    state = asyncio.run(MAATCSOrchestrator().run("原文", "declared-by-user"))
 
     assert state["source_declaration"] == "declared-by-user"
+
+
+def test_run_uses_unknown_term_when_extractor_returns_empty(monkeypatch) -> None:
+    from src.core import agent_orchestrator as orchestrator_module
+
+    observed_terms: list[str] = []
+
+    monkeypatch.setattr(orchestrator_module, "extract_candidate_terms", lambda text: [])
+
+    def fake_analyze_etymology(term: str, context: str, provider: str = "gemini") -> dict[str, str]:
+        observed_terms.append(term)
+        return {"term": term, "analysis": "ok"}
+
+    monkeypatch.setattr(orchestrator_module, "analyze_etymology", fake_analyze_etymology)
+    monkeypatch.setattr(
+        orchestrator_module,
+        "generate_candidates",
+        lambda term: {"gen_a": "A", "gen_b": "B", "gen_c": "C"},
+    )
+    monkeypatch.setattr(orchestrator_module, "compute_final_score", lambda *args, **kwargs: 0.6)
+    monkeypatch.setattr(
+        orchestrator_module,
+        "select_consensus",
+        lambda candidates, threshold, kanji_raw, romaji: {
+            "status": "fallback",
+            "winner": "A",
+            "final": 0.6,
+        },
+    )
+
+    state = asyncio.run(MAATCSOrchestrator().run("原文", "declared-by-user"))
+
+    assert state["terms"] == ["unknown_term"]
+    assert observed_terms == ["unknown_term"]
