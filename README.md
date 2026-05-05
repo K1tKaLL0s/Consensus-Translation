@@ -42,25 +42,21 @@ streamlit run src/ui/web_app/streamlit_app.py
 
 ## 启动方式
 
-### 1) 启动 API
+推荐使用一键启动脚本（PowerShell）：
 
-```bash
-uvicorn src.api.main:app --host 127.0.0.1 --port 8000 --reload
+```powershell
+.\run.ps1 -Init
+.\run.ps1
+.\run.ps1 -Mode desktop
 ```
 
-默认地址：`http://127.0.0.1:8000`
+- `.\run.ps1 -Init`：首次初始化（创建虚拟环境、安装依赖、初始化数据库）。
+- `.\run.ps1`：默认启动 API + Web（Streamlit）。
+- `.\run.ps1 -Mode desktop`：启动 API + PyQt 桌面端。
 
-### 2) 运行 PyQt 客户端
+### 备用方式（手动启动）
 
-```bash
-python -c "from src.ui.pyqt_app.main_window import run; run()"
-```
-
-### 3) 运行 Streamlit 客户端
-
-```bash
-streamlit run src/ui/web_app/streamlit_app.py
-```
+如需手动排查，可分别启动：`uvicorn src.api.main:app --host 127.0.0.1 --port 8000 --reload`、`streamlit run src/ui/web_app/streamlit_app.py` 或 `python -c "from src.ui.pyqt_app.main_window import run; run()"`。
 
 ## API 说明
 
