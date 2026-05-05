@@ -15,3 +15,7 @@ def test_offline_notice_text_contains_expected_message() -> None:
 
     assert "未联网" in text
     assert "部分功能受限" in text
+
+
+def test_module_supports_direct_execution_entrypoint() -> None:
+    assert hasattr(main_window, "run")

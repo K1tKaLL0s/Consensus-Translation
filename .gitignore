@@ -5,6 +5,10 @@ __pycache__/
 .mypy_cache/
 .runtime/
 .env
+.env.*
+!.env.example
+**/.env
+**/.env.*
 build/
 dist/
 *.spec

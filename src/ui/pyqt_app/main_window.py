@@ -40,3 +40,7 @@ def run() -> None:
     window.resize(1200, 700)
     window.show()
     app.exec()
+
+
+if __name__ == "__main__":
+    run()
