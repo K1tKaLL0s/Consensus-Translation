@@ -1,6 +1,6 @@
-# Cn-Jp Translate MVP
+# Cn-Jp Translation
 
-一个面向中文到日文场景的翻译与训练 MVP，包含 API、PyQt 桌面端、Streamlit Web 端，以及浏览器插件脚手架。
+一个面向中文到日文场景的翻译与训练项目，包含 API、PyQt 桌面端、Streamlit Web 端，以及浏览器插件。受限于技术原因，本项目仅为实验性玩具。
 
 ## 环境准备
 
@@ -91,7 +91,7 @@ streamlit run src/ui/web_app/streamlit_app.py
 
 - 用于词库导出，支持 `json/csv/xlsx`。
 
-## 浏览器插件 MVP
+## 浏览器插件
 
 插件位于 `extensions/browser/`，实现最小能力：
 
