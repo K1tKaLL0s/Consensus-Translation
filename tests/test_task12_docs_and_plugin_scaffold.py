@@ -51,3 +51,12 @@ def test_browser_extension_scaffold_targets_translate_task_endpoint() -> None:
     assert "textarea" in popup_html
     assert "/tasks/translate" in popup_js
     assert "source_declaration" in popup_js
+
+
+def test_popup_uses_active_tab_url_to_prefill_source_when_empty() -> None:
+    popup_js = _read_text("extensions/browser/popup.js")
+
+    assert "chrome.tabs.query" in popup_js
+    assert "new URL" in popup_js
+    assert "hostname" in popup_js
+    assert "if (!sourceInput.value.trim())" in popup_js

@@ -9,6 +9,35 @@ function setResult(message) {
   resultBox.textContent = message;
 }
 
+function prefillSourceFromActiveTab() {
+  if (!chrome.tabs || !chrome.tabs.query) {
+    return;
+  }
+
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (chrome.runtime.lastError || !tabs || tabs.length === 0) {
+      return;
+    }
+
+    const tabUrl = tabs[0].url;
+    if (!tabUrl || !sourceInput) {
+      return;
+    }
+
+    if (!sourceInput.value.trim()) {
+      try {
+        const parsedUrl = new URL(tabUrl);
+        const domain = parsedUrl.hostname.replace(/^www\./, "");
+        if (domain) {
+          sourceInput.value = domain;
+        }
+      } catch (_error) {
+        return;
+      }
+    }
+  });
+}
+
 async function submitTranslateTask() {
   const text = textInput.value.trim();
   const sourceDeclaration = sourceInput.value.trim();
@@ -50,3 +79,4 @@ async function submitTranslateTask() {
 }
 
 submitButton.addEventListener("click", submitTranslateTask);
+prefillSourceFromActiveTab();

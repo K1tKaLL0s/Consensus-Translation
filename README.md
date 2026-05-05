@@ -29,8 +29,6 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-如无 `.env.example`，请手动创建 `.env` 并填写所需 Key。
-
 ## Quick Start
 
 ```bash
