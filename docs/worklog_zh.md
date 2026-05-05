@@ -76,3 +76,12 @@
 - 新增词库自动解析：支持 `术语=译文`、`术语,译文`、`术语\t译文`，失败回退整行术语。
 - Streamlit 页面新增 LLM 配置面板、配置监控窗口、文件任务面板。
 - 新增 PNG profile 修复工具：`python -m src.tools.fix_png_profiles --root .`，用于根因处理 `libpng iCCP` 警告源头。
+
+## 七、Windows EXE 打包与图片资源文档（本次新增）
+
+- 新增桌面 EXE 打包脚本：`scripts/build_exe.ps1`（PyInstaller `--onefile`，目标入口为 PyQt）。
+- 新增 EXE 冒烟脚本：`scripts/smoke_test_exe.ps1`（检查进程拉起并给出结果）。
+- 新增占位图标：`assets/icons/app_placeholder.ico`，支持后续替换为正式图标。
+- 预留图片资源目录：`assets/images/`（当前版本不强依赖业务图片资源）。
+- PyQt 启动新增离线提醒：未联网时提示“当前未联网，部分功能受限”，但不阻断运行。
+- 保持现有运行基础不变：`run.ps1`、Web/API 启动路径继续可用。

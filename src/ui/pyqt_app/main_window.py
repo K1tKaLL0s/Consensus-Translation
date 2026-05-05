@@ -1,4 +1,18 @@
-from PyQt6.QtWidgets import QApplication, QLabel, QMainWindow, QSplitter
+import socket
+
+from PyQt6.QtWidgets import QApplication, QLabel, QMainWindow, QMessageBox, QSplitter
+
+
+def offline_notice_text() -> str:
+    return "当前未联网，部分功能受限。"
+
+
+def network_available(timeout: float = 0.5) -> bool:
+    try:
+        with socket.create_connection(("1.1.1.1", 53), timeout=timeout):
+            return True
+    except OSError:
+        return False
 
 
 class MainWindow(QMainWindow):
@@ -12,6 +26,12 @@ class MainWindow(QMainWindow):
         splitter.addWidget(QLabel("右屏: 资产管理矩阵"))
 
         self.setCentralWidget(splitter)
+        self.statusBar().showMessage("就绪")
+
+        if not network_available():
+            warning = offline_notice_text()
+            self.statusBar().showMessage(warning)
+            QMessageBox.information(self, "网络状态", warning)
 
 
 def run() -> None:

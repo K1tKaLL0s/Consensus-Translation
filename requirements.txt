@@ -21,3 +21,4 @@ python-docx
 Pillow
 pytest
 pytest-asyncio
+pyinstaller

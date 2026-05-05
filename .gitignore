@@ -5,6 +5,9 @@ __pycache__/
 .mypy_cache/
 .runtime/
 .env
+build/
+dist/
+*.spec
 *.pyc
 *.pyo
 *.pyd

@@ -204,3 +204,64 @@ Web 页面支持全局 `provider + model + api_key` 配置，并持久化到本�
 uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 streamlit run src/ui/web_app/streamlit_app.py
 ```
+
+## 9. Windows EXE 打包与运行
+
+### 9.1 打包前准备
+
+1. 建议先执行：`pip install -r requirements.txt`
+2. 确认图标文件存在：`assets/icons/app_placeholder.ico`
+
+### 9.2 构建 EXE（onefile）
+
+在项目根目录执行：
+
+```powershell
+./scripts/build_exe.ps1 -Clean
+```
+
+默认产物：`dist/CnJpTranslateDesktop.exe`
+
+### 9.3 本机冒烟验证
+
+```powershell
+./scripts/smoke_test_exe.ps1
+```
+
+通过标准：进程可拉起并输出 `Smoke test passed`。
+
+### 9.4 干净机验证清单
+
+将 `dist/CnJpTranslateDesktop.exe` 复制到另一台干净 Windows 机器，确认：
+
+1. EXE 可启动。
+2. 主窗口可显示。
+3. 断网时出现“当前未联网，部分功能受限”提醒。
+4. 未配置业务图片资源不影响启动。
+
+## 10. 图片资源配置指南（当前为可选）
+
+### 10.1 当前状态
+
+- 当前版本不强依赖业务图片资源。
+- 已预留目录：`assets/images/`。
+- 已提供图标占位：`assets/icons/app_placeholder.ico`。
+
+### 10.2 推荐放置路径与格式
+
+1. 应用图标：`assets/icons/`，格式建议 `.ico`。
+2. 业务图片：`assets/images/`，格式建议 `.png` 或 `.jpg`。
+
+### 10.3 图标替换方式
+
+将正式图标覆盖为：`assets/icons/app_placeholder.ico`，然后重新执行打包脚本。
+
+### 10.4 PNG profile 与 iCCP 提示规避
+
+如出现 PNG profile 相关警告，可执行：
+
+```powershell
+python -m src.tools.fix_png_profiles --root assets
+```
+
+建议导出标准 sRGB 资源，避免携带错误 ICC profile。
