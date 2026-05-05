@@ -45,17 +45,14 @@ streamlit run src/ui/web_app/streamlit_app.py
 推荐使用一键启动脚本（PowerShell）：
 
 ```powershell
-\.\run.ps1 -Init
-\.\run.ps1
-\.\run.ps1 -Mode desktop
-./run.ps1 -Init
-./run.ps1
-./run.ps1 -Mode desktop
+.\run.ps1 -Init
+.\run.ps1
+.\run.ps1 -Mode desktop
 ```
 
-- `.\run.ps1 -Init`（或 `./run.ps1 -Init`）：首次初始化（创建虚拟环境、安装依赖、初始化数据库）。
-- `.\run.ps1`（或 `./run.ps1`）：默认启动 API + Web（Streamlit）。
-- `.\run.ps1 -Mode desktop`（或 `./run.ps1 -Mode desktop`）：启动 API + PyQt 桌面端。
+- `.\run.ps1 -Init`：首次初始化（创建虚拟环境、安装依赖、初始化数据库）。
+- `.\run.ps1`：默认启动 API + Web（Streamlit）。
+- `.\run.ps1 -Mode desktop`：启动 API + PyQt 桌面端。
 
 ### 备用方式（手动启动）
 

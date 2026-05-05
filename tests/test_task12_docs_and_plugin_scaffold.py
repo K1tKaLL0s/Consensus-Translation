@@ -14,9 +14,9 @@ def test_readme_contains_required_setup_and_run_sections() -> None:
     assert "python -m venv venv" in content
     assert "pip install -r requirements.txt" in content
     assert "配置 .env" in content
-    assert "./run.ps1 -Init" in content
-    assert "./run.ps1" in content
-    assert "./run.ps1 -Mode desktop" in content
+    assert ".\\run.ps1 -Init" in content
+    assert ".\\run.ps1" in content
+    assert ".\\run.ps1 -Mode desktop" in content
     assert "备用方式" in content
     assert "/tasks/translate" in content
     assert "PyQt" in content
