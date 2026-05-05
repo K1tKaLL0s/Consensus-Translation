@@ -9,6 +9,24 @@ def test_compute_final_score_uses_weighted_formula() -> None:
     assert result == pytest.approx(expected)
 
 
+@pytest.mark.parametrize(
+    ("alpha", "beta", "gamma"),
+    [
+        (-0.1, 0.6, 0.5),
+        (0.6, -0.1, 0.5),
+        (0.6, 0.5, -0.1),
+        (0.5, 0.3, 0.1),
+    ],
+)
+def test_compute_final_score_rejects_invalid_weights(
+    alpha: float,
+    beta: float,
+    gamma: float,
+) -> None:
+    with pytest.raises(ValueError):
+        compute_final_score(0.8, 0.9, 0.6, alpha=alpha, beta=beta, gamma=gamma)
+
+
 def test_select_consensus_falls_back_below_threshold() -> None:
     candidates = [
         {"text": "候选A", "final": 0.80},
@@ -41,3 +59,16 @@ def test_select_consensus_auto_approves_above_threshold() -> None:
 
     assert result["status"] == "auto_approved"
     assert result["winner"] == "候选B"
+
+
+def test_select_consensus_handles_empty_candidates() -> None:
+    result = select_consensus(
+        candidates=[],
+        threshold=0.90,
+        kanji_raw="漢字原文",
+        romaji="kanji genbun",
+    )
+
+    assert result["status"] == "fallback"
+    assert result["winner"] == "kanji genbun"
+    assert result["final"] == 0.0
