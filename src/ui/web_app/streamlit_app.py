@@ -1,9 +1,18 @@
-def validate_submission(mode: str, source: str, text: str) -> tuple[bool, str]:
-    if not source.strip():
-        return False, "来源/主题不能为空"
+from src.services.translation_service import (
+    validate_source_declaration,
+    validate_translation_input,
+)
 
-    if mode == "翻译" and len(text) > 1000:
-        return False, "翻译模式文本长度不能超过1000"
+
+def validate_submission(mode: str, source: str, text: str) -> tuple[bool, str]:
+    source_ok, source_message = validate_source_declaration(source)
+    if not source_ok:
+        return False, source_message
+
+    if mode == "翻译":
+        text_ok, text_message = validate_translation_input(text)
+        if not text_ok:
+            return False, text_message
 
     return True, "提交成功"
 
