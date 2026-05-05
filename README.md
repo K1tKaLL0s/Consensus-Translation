@@ -46,6 +46,8 @@ streamlit run src/ui/web_app/streamlit_app.py
 
 ```powershell
 .\run.ps1 -Init
+# 或者（兼容写法）
+./run.ps1 -Init
 ```
 
 ### 1) 启动 API

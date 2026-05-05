@@ -132,4 +132,4 @@ def test_readme_documents_run_ps1_init_entrypoint() -> None:
 
     content = readme_path.read_text(encoding="utf-8")
 
-    assert ".\\run.ps1 -Init" in content
+    assert "./run.ps1 -Init" in content
