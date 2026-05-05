@@ -3,6 +3,9 @@ from src.core.llm_router import LLMRouter
 
 def generate_candidates(term: str) -> dict[str, str]:
     clean = term.strip()
+    if not clean:
+        raise ValueError("term must not be blank")
+
     router = LLMRouter()
     context = clean[:200]
     return {
