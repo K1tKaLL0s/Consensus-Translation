@@ -1,5 +1,5 @@
 from src.services.translation_service import validate_translation_input
-from src.ui.web_app.streamlit_app import validate_submission
+from src.ui.web_app.streamlit_app import validate_submission, validate_upload_name
 
 
 def test_translate_mode_rejects_text_longer_than_1000_chars() -> None:
@@ -39,3 +39,17 @@ def test_validate_submission_allows_training_text_over_limit() -> None:
 
     assert ok is True
     assert message == "提交成功"
+
+
+def test_validate_upload_name_accepts_docx() -> None:
+    ok, message = validate_upload_name("book.docx")
+
+    assert ok is True
+    assert message == "ok"
+
+
+def test_validate_upload_name_rejects_pdf() -> None:
+    ok, message = validate_upload_name("book.pdf")
+
+    assert ok is False
+    assert "txt/md/docx" in message

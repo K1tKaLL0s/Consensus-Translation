@@ -1,5 +1,7 @@
 import os
 
+from src.services.llm_config_service import default_llm_config_service
+
 
 class LLMRouter:
     _PROVIDER_ENV_MAP = {
@@ -37,6 +39,14 @@ class LLMRouter:
     def _has_key(self, provider: str) -> bool:
         resolved = self.resolve_provider(provider)
         env_name = self._PROVIDER_ENV_MAP[resolved]
+
+        try:
+            status = default_llm_config_service().load()
+        except FileNotFoundError:
+            status = None
+
+        if status and status.get("provider") == resolved and status.get("api_key"):
+            return True
         return bool(os.getenv(env_name))
 
     def generate(self, provider: str, prompt: str) -> str:

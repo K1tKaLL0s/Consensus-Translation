@@ -10,10 +10,14 @@ fugashi
 unidic-lite
 fastapi
 uvicorn
+python-multipart
 python-dotenv
 pydantic
 pyqt6
 streamlit
 pandas
+requests
+python-docx
+Pillow
 pytest
 pytest-asyncio

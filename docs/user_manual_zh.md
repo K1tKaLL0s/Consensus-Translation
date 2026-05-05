@@ -67,7 +67,30 @@
 
 ## 5. LLM 使用与配置
 
-当前项目可识别并路由以下模型提供商：
+当前项目支持以下 6 种模型提供商（可在 Web UI 配置）：
+
+- `gpt`
+- `qwen`
+- `kimi`
+- `deepseek`
+- `gemini`
+- `watsonx`
+
+### 5.1 全局配置方式（Web UI）
+
+Web 页面支持全局 `provider + model + api_key` 配置，并持久化到本地配置文件。
+
+配置监控窗口可执行：
+
+1. 新增/更新配置。
+2. 删除配置。
+3. 刷新状态（provider、model、api_key 是否已配置、更新时间）。
+
+### 5.2 环境变量兼容
+
+仍兼容原有环境变量方式；当本地配置缺失时，回退环境变量读取。
+
+原有可用 provider 包含：
 
 - `deepseek`
 - `kimi`
@@ -82,6 +105,17 @@
 若未配置 key，系统允许 Mock 回退（用于本地开发与演示）。
 
 ## 6. 业务使用流程
+
+### 6.0 Web 文件任务（新增）
+
+支持上传 `txt/md/docx`，并先选择用途：
+
+1. `translate`：文件翻译（输出保持原格式）。
+2. `glossary`：词库导入（自动解析 `=` `,` `tab`，失败按整行术语入库）。
+
+`source_declaration`（来源/主题）为必填。
+
+翻译成功后可通过下载接口获取同格式结果文件。
 
 ### 6.1 翻译流程
 
@@ -154,3 +188,19 @@
 - Streamlit 默认 `8501`
 
 若冲突，请先结束占用进程或调整启动参数（开发时可手动方式启动）。
+
+### 8.4 文件上传类型报错
+
+若出现 `unsupported file type`：
+
+- 确认文件扩展名是 `txt/md/docx`。
+- 避免将其他格式重命名后上传。
+
+### 8.5 Web 进程手动启动
+
+如需手动启动 Web：
+
+```powershell
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+streamlit run src/ui/web_app/streamlit_app.py
+```

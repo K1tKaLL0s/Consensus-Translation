@@ -66,3 +66,13 @@
 
 - 为插件增加 API Base URL 图形化配置。
 - 在用户手册补充常见故障 FAQ（端口占用、MySQL 服务名差异、权限问题）。
+
+## 六、Web 文件工作流与 LLM 配置（本次新增）
+
+- 新增全局 LLM 配置服务：支持 `gpt/qwen/kimi/deepseek/gemini/watsonx` 六种 provider。
+- 新增配置接口：`POST/GET/DELETE /config/llm`，支持本地配置文件持久化与状态查询。
+- 新增文件任务接口：`POST /tasks/file`、`GET /tasks/file/{task_id}`、`GET /downloads/{task_id}`。
+- 新增文件能力：支持 `txt/md/docx` 上传，翻译输出保持原格式。
+- 新增词库自动解析：支持 `术语=译文`、`术语,译文`、`术语\t译文`，失败回退整行术语。
+- Streamlit 页面新增 LLM 配置面板、配置监控窗口、文件任务面板。
+- 新增 PNG profile 修复工具：`python -m src.tools.fix_png_profiles --root .`，用于根因处理 `libpng iCCP` 警告源头。
