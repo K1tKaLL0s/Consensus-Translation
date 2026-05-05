@@ -1,5 +1,3 @@
-from typing import Literal
-
 from fastapi import FastAPI, HTTPException, Path, Query
 from pydantic import BaseModel
 
@@ -19,6 +17,11 @@ class TranslateRequest(BaseModel):
 class TrainRequest(BaseModel):
     text: str
     chunk_size: int = 4000
+
+
+class FeedbackConfirmRequest(BaseModel):
+    task_id: str
+    confirmed: bool
 
 
 @app.post("/tasks/translate")
@@ -54,7 +57,7 @@ def create_train_task(payload: TrainRequest) -> dict[str, object]:
 
 
 @app.get("/glossary/export")
-def export_glossary(fmt: Literal["csv", "xlsx", "json"] = Query(default="json")) -> dict[str, object]:
+def export_glossary(fmt: str = Query(default="json")) -> dict[str, object]:
     try:
         normalized_format = validate_export_format(fmt)
     except ValueError as error:
@@ -68,8 +71,8 @@ def export_glossary(fmt: Literal["csv", "xlsx", "json"] = Query(default="json"))
 
 
 @app.post("/feedback/confirm")
-def submit_feedback_confirmation() -> dict[str, str]:
-    return {"status": "placeholder"}
+def submit_feedback_confirmation(payload: FeedbackConfirmRequest) -> dict[str, object]:
+    return {"status": "ok", "task_id": payload.task_id, "confirmed": payload.confirmed}
 
 
 @app.get("/tasks/{task_id}/events")
