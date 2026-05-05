@@ -4,6 +4,14 @@ import os
 from collections.abc import Mapping
 from dataclasses import dataclass
 
+from dotenv import load_dotenv
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import Engine, URL
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session, sessionmaker
+
+from src.models.entities import Base
+
 
 @dataclass(frozen=True)
 class BootstrapResult:
@@ -40,22 +48,100 @@ def suggest_mysql_actions(
     return "MySQL installation and service look healthy."
 
 
-def _probe_mysql() -> tuple[bool, bool, str]:
-    mysql_installed = bool(os.environ.get("MYSQL_INSTALLED"))
-    mysql_service_running = mysql_installed and bool(os.environ.get("MYSQL_SERVICE_RUNNING"))
-    message = suggest_mysql_actions(
-        mysql_installed=mysql_installed,
-        mysql_service_running=mysql_service_running,
+def _load_db_config() -> dict[str, str | int]:
+    load_dotenv()
+    host = os.getenv("DB_HOST", "127.0.0.1")
+    port = int(os.getenv("DB_PORT", "3306"))
+    user = os.getenv("DB_USER", "root")
+    password = os.getenv("DB_PASSWORD", "")
+    database = os.getenv("DB_NAME", "cn_jp_translate")
+    return {
+        "host": host,
+        "port": port,
+        "user": user,
+        "password": password,
+        "database": database,
+    }
+
+
+def _build_server_url(config: Mapping[str, str | int]) -> URL:
+    return URL.create(
+        drivername="mysql+pymysql",
+        username=str(config["user"]),
+        password=str(config["password"]),
+        host=str(config["host"]),
+        port=int(config["port"]),
+        database=None,
+        query={"charset": "utf8mb4"},
     )
-    return mysql_installed, mysql_service_running, message
+
+
+def _build_database_url(config: Mapping[str, str | int]) -> URL:
+    return URL.create(
+        drivername="mysql+pymysql",
+        username=str(config["user"]),
+        password=str(config["password"]),
+        host=str(config["host"]),
+        port=int(config["port"]),
+        database=str(config["database"]),
+        query={"charset": "utf8mb4"},
+    )
+
+
+def _create_server_engine(url: URL) -> Engine:
+    return create_engine(url)
+
+
+def _create_database_engine(url: URL) -> Engine:
+    return create_engine(url)
+
+
+def _create_server_session(engine: Engine) -> Session:
+    return sessionmaker(bind=engine)()
+
+
+def _dispose_engine(engine: object) -> None:
+    dispose = getattr(engine, "dispose", None)
+    if callable(dispose):
+        dispose()
+
+
+def _probe_mysql() -> tuple[bool, bool, str]:
+    config = _load_db_config()
+    engine = _create_server_engine(_build_server_url(config))
+
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except SQLAlchemyError as exc:
+        return False, False, f"MySQL probe failed: {exc}"
+    finally:
+        _dispose_engine(engine)
+
+    return True, True, "MySQL installation and service look healthy."
 
 
 def _create_database_if_needed() -> None:
-    return None
+    config = _load_db_config()
+    engine = _create_server_engine(_build_server_url(config))
+    session = _create_server_session(engine)
+    database = str(config["database"]).replace("`", "")
+
+    try:
+        session.execute(text(f"CREATE DATABASE IF NOT EXISTS `{database}`"))
+        session.commit()
+    finally:
+        session.close()
+        _dispose_engine(engine)
 
 
 def _create_tables() -> None:
-    return None
+    config = _load_db_config()
+    engine = _create_database_engine(_build_database_url(config))
+    try:
+        Base.metadata.create_all(engine)
+    finally:
+        _dispose_engine(engine)
 
 
 def bootstrap_mysql() -> BootstrapResult:

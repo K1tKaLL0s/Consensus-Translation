@@ -58,3 +58,35 @@ def test_bootstrap_mysql_returns_ok_false_with_guidance_when_probe_fails(monkeyp
 
     assert result.ok is False
     assert "install" in result.message.lower()
+
+
+def test_create_database_if_needed_executes_create_database_sql(monkeypatch) -> None:
+    executed = []
+
+    class FakeSession:
+        def execute(self, statement):
+            executed.append(str(statement))
+
+        def commit(self):
+            return None
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(
+        bootstrap_module,
+        "_load_db_config",
+        lambda: {
+            "host": "127.0.0.1",
+            "port": 3306,
+            "user": "root",
+            "password": "",
+            "database": "cn_jp_translate",
+        },
+    )
+    monkeypatch.setattr(bootstrap_module, "_create_server_engine", lambda _url: object())
+    monkeypatch.setattr(bootstrap_module, "_create_server_session", lambda _engine: FakeSession())
+
+    bootstrap_module._create_database_if_needed()
+
+    assert any("CREATE DATABASE IF NOT EXISTS" in sql for sql in executed)
