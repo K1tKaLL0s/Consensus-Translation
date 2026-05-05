@@ -26,6 +26,25 @@ def test_extract_candidate_terms_do_not_include_whitespace_tokens() -> None:
     assert all(not re.search(r"\s", term) for term in terms)
 
 
+def test_extract_candidate_terms_japanese_no_space_text_avoids_full_sentence_term() -> None:
+    sentence = "機械翻訳の品質評価は重要です"
+    text = f"{sentence}。{sentence}。{sentence}。"
+
+    terms = extract_candidate_terms(text)
+
+    assert terms
+    assert sentence not in terms
+
+
+def test_extract_candidate_terms_limit_japanese_term_length_range() -> None:
+    text = "機械翻訳の品質評価は重要です。機械翻訳の品質評価は重要です。機械翻訳の品質評価は重要です。"
+
+    terms = extract_candidate_terms(text)
+
+    assert terms
+    assert all(2 <= len(term) <= 12 for term in terms)
+
+
 def test_generate_candidates_returns_three_paths() -> None:
     result = generate_candidates("品質評価")
 
