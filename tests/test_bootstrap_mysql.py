@@ -60,6 +60,34 @@ def test_bootstrap_mysql_returns_ok_false_with_guidance_when_probe_fails(monkeyp
     assert "install" in result.message.lower()
 
 
+def test_bootstrap_mysql_returns_ok_false_when_create_tables_raises(monkeypatch) -> None:
+    monkeypatch.setattr(
+        bootstrap_module,
+        "_probe_mysql",
+        lambda: (True, True, "MySQL installation and service look healthy."),
+    )
+    monkeypatch.setattr(bootstrap_module, "_create_database_if_needed", lambda: None)
+
+    def _raise_create_tables() -> None:
+        raise RuntimeError("table creation exploded")
+
+    monkeypatch.setattr(bootstrap_module, "_create_tables", _raise_create_tables)
+
+    result = bootstrap_module.bootstrap_mysql()
+
+    assert result.ok is False
+    assert "table creation exploded" in result.message
+
+
+def test_bootstrap_mysql_returns_ok_false_when_db_port_is_invalid(monkeypatch) -> None:
+    monkeypatch.setenv("DB_PORT", "not-a-port")
+
+    result = bootstrap_module.bootstrap_mysql()
+
+    assert result.ok is False
+    assert "port" in result.message.lower()
+
+
 def test_create_database_if_needed_executes_create_database_sql(monkeypatch) -> None:
     executed = []
 

@@ -51,7 +51,11 @@ def suggest_mysql_actions(
 def _load_db_config() -> dict[str, str | int]:
     load_dotenv()
     host = os.getenv("DB_HOST", "127.0.0.1")
-    port = int(os.getenv("DB_PORT", "3306"))
+    port_raw = os.getenv("DB_PORT", "3306")
+    try:
+        port = int(port_raw)
+    except ValueError as exc:
+        raise ValueError(f"Invalid DB_PORT value '{port_raw}'. Please configure a valid integer port.") from exc
     user = os.getenv("DB_USER", "root")
     password = os.getenv("DB_PASSWORD", "")
     database = os.getenv("DB_NAME", "cn_jp_translate")
@@ -145,10 +149,18 @@ def _create_tables() -> None:
 
 
 def bootstrap_mysql() -> BootstrapResult:
-    mysql_installed, mysql_service_running, probe_message = _probe_mysql()
+    try:
+        mysql_installed, mysql_service_running, probe_message = _probe_mysql()
+    except ValueError as exc:
+        return BootstrapResult(ok=False, message=f"MySQL bootstrap failed: {exc}")
+
     if not mysql_installed or not mysql_service_running:
         return BootstrapResult(ok=False, message=f"MySQL bootstrap guidance: {probe_message}")
 
-    _create_database_if_needed()
-    _create_tables()
+    try:
+        _create_database_if_needed()
+        _create_tables()
+    except Exception as exc:
+        return BootstrapResult(ok=False, message=f"MySQL bootstrap failed during schema setup: {exc}")
+
     return BootstrapResult(ok=True, message="MySQL bootstrap completed.")
