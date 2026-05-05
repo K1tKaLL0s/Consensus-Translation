@@ -23,6 +23,25 @@ Windows PowerShell:
 pip install -r requirements.txt
 ```
 
+4. 配置环境变量：
+
+```bash
+cp .env.example .env
+```
+
+如无 `.env.example`，请手动创建 `.env` 并填写所需 Key。
+
+## Quick Start
+
+```bash
+python -m venv venv
+pip install -r requirements.txt
+# 配置 .env
+python -m src.models.init_db
+uvicorn src.api.main:app --host 127.0.0.1 --port 8000 --reload
+streamlit run src/ui/web_app/streamlit_app.py
+```
+
 ## 启动方式
 
 ### 1) 启动 API

@@ -13,6 +13,10 @@ def test_readme_contains_required_setup_and_run_sections() -> None:
 
     assert "python -m venv venv" in content
     assert "pip install -r requirements.txt" in content
+    assert "配置 .env" in content
+    assert "python -m src.models.init_db" in content
+    assert "uvicorn src.api.main:app" in content
+    assert "streamlit run src/ui/web_app/streamlit_app.py" in content
     assert "/tasks/translate" in content
     assert "PyQt" in content
     assert "Streamlit" in content
@@ -25,6 +29,11 @@ def test_docs_package_contains_required_topic_statements() -> None:
     presentation_script = _read_text("docs/presentation_script_zh.md")
 
     assert "训练无上限分段" in cost_strategy
+    assert "DeepSeek" in cost_strategy and "TEx + Gen-A" in cost_strategy
+    assert "Gemini" in cost_strategy and "Etym + Gen-B" in cost_strategy
+    assert "watsonx.ai" in cost_strategy and "Gen-C + Arb" in cost_strategy
+    assert "GPT / 千问 / Kimi" in cost_strategy
+    assert "自动回退到 Mock" in cost_strategy
     assert "来源声明" in worklog
     assert "词库分类下载" in user_manual
     assert "来源声明" in presentation_script
@@ -37,6 +46,8 @@ def test_browser_extension_scaffold_targets_translate_task_endpoint() -> None:
 
     assert '"manifest_version": 3' in manifest
     assert "MVP" in manifest
+    assert '"activeTab"' in manifest
+    assert '"storage"' in manifest
     assert "textarea" in popup_html
     assert "/tasks/translate" in popup_js
     assert "source_declaration" in popup_js
