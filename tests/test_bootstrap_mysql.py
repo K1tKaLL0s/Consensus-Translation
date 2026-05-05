@@ -1,3 +1,4 @@
+from src.tools import bootstrap_mysql as bootstrap_module
 from src.tools.bootstrap_mysql import check_llm_keys, suggest_mysql_actions
 
 
@@ -26,3 +27,34 @@ def test_check_llm_keys_detects_deepseek_kimi_qwen() -> None:
     assert result["deepseek"] is True
     assert result["kimi"] is False
     assert result["qwen"] is True
+
+
+def test_bootstrap_mysql_returns_ok_true_when_probe_succeeds(monkeypatch) -> None:
+    monkeypatch.setattr(
+        bootstrap_module,
+        "_probe_mysql",
+        lambda: (True, True, "MySQL installation and service look healthy."),
+    )
+    monkeypatch.setattr(bootstrap_module, "_create_database_if_needed", lambda: None)
+    monkeypatch.setattr(bootstrap_module, "_create_tables", lambda: None)
+
+    result = bootstrap_module.bootstrap_mysql()
+
+    assert result.ok is True
+
+
+def test_bootstrap_mysql_returns_ok_false_with_guidance_when_probe_fails(monkeypatch) -> None:
+    monkeypatch.setattr(
+        bootstrap_module,
+        "_probe_mysql",
+        lambda: (
+            False,
+            False,
+            "Install MySQL Server via winget: winget install Oracle.MySQL",
+        ),
+    )
+
+    result = bootstrap_module.bootstrap_mysql()
+
+    assert result.ok is False
+    assert "install" in result.message.lower()
