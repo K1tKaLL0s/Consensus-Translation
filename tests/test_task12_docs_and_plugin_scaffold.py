@@ -23,6 +23,14 @@ def test_readme_contains_required_setup_and_run_sections() -> None:
     assert "Streamlit" in content
 
 
+def test_readme_contains_run_ps1_quick_start() -> None:
+    content = _read_text("README.md")
+
+    assert ".\\run.ps1 -Init" in content
+    assert ".\\run.ps1" in content
+    assert ".\\run.ps1 -Mode desktop" in content
+
+
 def test_docs_package_contains_required_topic_statements() -> None:
     cost_strategy = _read_text("docs/cost_strategy.md")
     worklog = _read_text("docs/worklog_zh.md")
