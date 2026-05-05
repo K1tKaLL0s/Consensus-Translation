@@ -1,6 +1,6 @@
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Path, Query
 from pydantic import BaseModel
 
 from src.services.glossary_service import validate_export_format
@@ -67,11 +67,11 @@ def export_glossary(fmt: Literal["csv", "xlsx", "json"] = Query(default="json"))
     }
 
 
-@app.post("/feedback")
-def submit_feedback() -> dict[str, str]:
+@app.post("/feedback/confirm")
+def submit_feedback_confirmation() -> dict[str, str]:
     return {"status": "placeholder"}
 
 
-@app.get("/events")
-def list_events() -> dict[str, list[object]]:
-    return {"events": []}
+@app.get("/tasks/{task_id}/events")
+def list_task_events(task_id: str = Path(..., min_length=1)) -> dict[str, object]:
+    return {"task_id": task_id, "events": []}
