@@ -15,9 +15,13 @@ class OrchestratorState(TypedDict, total=False):
     etym_reports: list[dict[str, str]]
     candidate_pool: list[dict[str, Any]]
     consensus: dict[str, Any]
+    unknown_only: bool
 
 
 class MAATCSOrchestrator:
+    def __init__(self) -> None:
+        self._app = self._build_graph()
+
     def _build_graph(self):
         workflow = StateGraph(OrchestratorState)
         workflow.add_node("extract_terms", self._extract_terms)
@@ -39,9 +43,11 @@ class MAATCSOrchestrator:
         terms = extract_candidate_terms(state["raw_text"])
         if not terms:
             terms = ["unknown_term"]
-        return {"terms": terms}
+        return {"terms": terms, "unknown_only": terms == ["unknown_term"]}
 
     def _analyze_etymology(self, state: OrchestratorState) -> OrchestratorState:
+        if state.get("unknown_only"):
+            return {"etym_reports": []}
         etym_reports: list[dict[str, str]] = []
         for term in state["terms"]:
             etym_report = analyze_etymology(term=term, context=state["raw_text"], provider="gemini")
@@ -49,6 +55,8 @@ class MAATCSOrchestrator:
         return {"etym_reports": etym_reports}
 
     def _generate_candidates(self, state: OrchestratorState) -> OrchestratorState:
+        if state.get("unknown_only"):
+            return {"candidate_pool": []}
         candidate_pool: list[dict[str, Any]] = []
         for term in state["terms"]:
             generated = generate_candidates(term)
@@ -69,6 +77,14 @@ class MAATCSOrchestrator:
         return {"candidate_pool": candidate_pool}
 
     def _arbitrate(self, state: OrchestratorState) -> OrchestratorState:
+        if state.get("unknown_only"):
+            return {
+                "consensus": {
+                    "status": "fallback",
+                    "winner": "unknown_term",
+                    "final": 0.0,
+                }
+            }
         consensus = select_consensus(
             candidates=state["candidate_pool"],
             threshold=0.9,
@@ -81,7 +97,6 @@ class MAATCSOrchestrator:
         return {}
 
     async def run(self, raw_text: str, source_declaration: str) -> dict[str, Any]:
-        app = self._build_graph()
         initial_state: OrchestratorState = {
             "raw_text": raw_text,
             "source_declaration": source_declaration,
@@ -89,5 +104,5 @@ class MAATCSOrchestrator:
             "etym_reports": [],
             "candidate_pool": [],
         }
-        final_state = await app.ainvoke(initial_state)
+        final_state = await self._app.ainvoke(initial_state)
         return dict(final_state)
