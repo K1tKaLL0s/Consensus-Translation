@@ -106,6 +106,29 @@ def test_local_job_marks_needs_review_when_scores_low(monkeypatch):
     assert result["needs_review"] is True
 
 
+def test_local_job_includes_domain_tags_and_trace_mentions_domain_weight_adjustment(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineA.translate",
+        lambda _self, _text, _source, _target: ("ancestor chronicle", 0.7),
+    )
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineB.translate",
+        lambda _self, _text, _source, _target: ("ancestor log", 0.69),
+    )
+
+    result = run_local_job(
+        text="A myth chronicle mentions the ancestor.",
+        source_lang="en",
+        target_lang="ja",
+        topic="history",
+    )
+
+    assert result["domain_tags"] == ["history", "myth"]
+    assert "domain_weight_adjustment" in result["decision_trace"]
+
+
 def test_health_report_has_three_levels_and_ok_flags():
     report = health_module.health_report()
 

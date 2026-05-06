@@ -1,5 +1,6 @@
 from consensus_translation.config import AppSettings
 from consensus_translation.contracts import StageStatus, TranslationJobContract
+from consensus_translation.domain_signals import extract_domain_signals
 from consensus_translation.engines import LocalEngineA, LocalEngineB
 from consensus_translation.evaluation import evaluate_translation
 from consensus_translation.lexicon import LexiconRepo, RevisionPayload
@@ -38,6 +39,10 @@ def run_local_job(
         raise
 
     update_stage(StageStatus.CROSS_CHECK, 0.65)
+
+    domain_signals = extract_domain_signals(text=text, topic=topic)
+    domain_tags = domain_signals["domain_tags"]
+    domain_hits = domain_signals["domain_hits"]
 
     left = DecisionInput(
         token_score=a_conf,
@@ -90,6 +95,9 @@ def run_local_job(
         "segment_score": winner.segment_score,
         "user_prior": winner.user_prior,
         "decision_reason": "left-score-greater-or-equal" if winner is left else "right-score-greater",
+        "domain_tags": domain_tags,
+        "decision_trace": f"domain_weight_adjustment: tags={','.join(domain_tags) if domain_tags else 'none'}",
+        "domain_hits": domain_hits,
     }
 
 
