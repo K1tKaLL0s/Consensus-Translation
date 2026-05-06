@@ -41,3 +41,19 @@ def test_large_diff_marks_special_and_lowers_weight():
     assert repo.find("uncategorized", "你好") == "今日は"
     assert event.special_flag is True
     assert event.user_prior_delta == -0.1
+
+
+def test_lexicon_persists_across_instances(tmp_path):
+    store_file = tmp_path / "lexicon.json"
+    first = LexiconRepo(store_path=store_file)
+    first.apply_revision(
+        RevisionPayload(
+            topic="travel",
+            source="车站",
+            target="駅",
+            diff_ratio=0.2,
+        )
+    )
+
+    second = LexiconRepo(store_path=store_file)
+    assert second.find("travel", "车站") == "駅"
