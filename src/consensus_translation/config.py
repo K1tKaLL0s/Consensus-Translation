@@ -3,6 +3,8 @@ from pydantic import BaseModel, Field
 
 class AppSettings(BaseModel):
     contract_version: str = "1.0.0"
+    pretrain_baseline_overall: float = 0.5
+    evaluation_version: str = "deterministic-v1"
     default_granularity: list[str] = Field(
         default_factory=lambda: ["token", "sentence", "segment"]
     )

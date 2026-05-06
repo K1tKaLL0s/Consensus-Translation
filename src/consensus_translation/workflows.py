@@ -1,6 +1,7 @@
 from consensus_translation.config import AppSettings
 from consensus_translation.contracts import StageStatus, TranslationJobContract
 from consensus_translation.engines import LocalEngineA, LocalEngineB
+from consensus_translation.evaluation import evaluate_translation
 from consensus_translation.lexicon import LexiconRepo, RevisionPayload
 from consensus_translation.mdwc import DecisionInput, choose_candidate, score_candidate
 
@@ -99,6 +100,7 @@ def run_pretrain_job(
     target_lang: str,
     topic: str | None,
 ) -> dict[str, object]:
+    settings = AppSettings()
     contract = TranslationJobContract.new_job(
         mode="pretrain",
         source_lang=source_lang,
@@ -130,12 +132,12 @@ def run_pretrain_job(
         raise
 
     update_stage(StageStatus.REVIEW, 0.85)
-    validation_metrics = {
-        "bleu": 0.62,
-        "comet": 0.71,
-        "term_consistency": 1.0,
-    }
-    improvement_rate = max(0.0, validation_metrics["bleu"] - 0.5)
+    validation_metrics = evaluate_translation(
+        str(base_result["final_text"]), validation_text
+    )
+    improvement_rate = max(
+        0.0, validation_metrics["overall"] - settings.pretrain_baseline_overall
+    )
     update_stage(StageStatus.FINALIZE, 1.0)
 
     return {
@@ -145,6 +147,7 @@ def run_pretrain_job(
         "calibration_summary": "pretrain-complete",
         "validation_metrics": validation_metrics,
         "improvement_rate": improvement_rate,
+        "evaluation_version": settings.evaluation_version,
         "conflict_terms": [],
         "uncategorized_terms": [] if topic else [train_text],
         "contract": contract.model_dump(),

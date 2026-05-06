@@ -39,10 +39,12 @@ def test_pretrain_returns_calibration_summary_and_updates(monkeypatch):
     assert result["base_result"]["mode"] == "local"
     assert result["base_result"]["final_text"] == "station"
     assert set(result["validation_metrics"].keys()) == {
-        "bleu",
-        "comet",
         "term_consistency",
+        "length_ratio",
+        "edit_similarity",
+        "overall",
     }
+    assert 0.0 <= result["validation_metrics"]["overall"] <= 1.0
     assert isinstance(result["improvement_rate"], float)
     assert isinstance(result["conflict_terms"], list)
     assert isinstance(result["uncategorized_terms"], list)
