@@ -113,6 +113,10 @@ def extract_page_data(page: str, payload: dict[str, object] | None) -> dict[str,
     return values
 
 
+def get_page_select_keys() -> list[str]:
+    return list(PAGE_FIELD_MAP.keys())
+
+
 def main() -> None:
     if st is None:  # pragma: no cover
         raise RuntimeError("streamlit is required to run the UI")
@@ -148,9 +152,11 @@ def main() -> None:
             topic=topic,
         )
 
-    label_to_key = {label: key for key, label in PAGE_LABEL_MAP.items()}
-    selected_label = st.sidebar.selectbox("页面", list(label_to_key.keys()))
-    page = label_to_key[selected_label]
+    page = st.sidebar.selectbox(
+        "页面",
+        get_page_select_keys(),
+        format_func=lambda key: PAGE_LABEL_MAP.get(key, key),
+    )
     page_data = extract_page_data(page, st.session_state.get("latest_payload"))
 
     st.subheader(PAGE_LABEL_MAP[page])

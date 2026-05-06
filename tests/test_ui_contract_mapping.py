@@ -10,7 +10,13 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 
-from app import PAGE_FIELD_MAP, PAGE_LABEL_MAP, extract_page_data, resolve_dot_path
+from app import (
+    PAGE_FIELD_MAP,
+    PAGE_LABEL_MAP,
+    extract_page_data,
+    get_page_select_keys,
+    resolve_dot_path,
+)
 
 
 def test_monitor_page_uses_plan_defined_status_fields():
@@ -158,3 +164,13 @@ def test_page_label_map_uses_chinese_labels_for_display_only():
         "pretrain_report": "预训练报告",
     }
     assert set(PAGE_LABEL_MAP.keys()) == set(PAGE_FIELD_MAP.keys())
+
+
+def test_page_label_values_are_unique_to_avoid_display_collisions():
+    labels = list(PAGE_LABEL_MAP.values())
+
+    assert len(labels) == len(set(labels))
+
+
+def test_page_selector_options_use_stable_contract_keys():
+    assert get_page_select_keys() == list(PAGE_FIELD_MAP.keys())
