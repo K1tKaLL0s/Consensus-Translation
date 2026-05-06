@@ -62,20 +62,35 @@ PAGE_FIELD_MAP: dict[str, list[str]] = {
 }
 
 
-def resolve_dot_path(payload: dict[str, object], path: str) -> object:
+_MISSING = object()
+
+
+def _resolve_dot_path_with_found(payload: dict[str, object], path: str) -> tuple[bool, object]:
     current: object = payload
     for key in path.split("."):
         if not isinstance(current, dict) or key not in current:
-            return None
+            return False, _MISSING
         current = current[key]
-    return current
+    return True, current
+
+
+def resolve_dot_path(payload: dict[str, object], path: str) -> object:
+    found, value = _resolve_dot_path_with_found(payload, path)
+    if not found:
+        return None
+    return value
 
 
 def extract_page_data(page: str, payload: dict[str, object] | None) -> dict[str, object]:
     values: dict[str, object] = {}
     data = payload or {}
     for key in PAGE_FIELD_MAP[page]:
-        values[key] = resolve_dot_path(data, key)
+        found, value = _resolve_dot_path_with_found(data, key)
+        if not found:
+            _, value = _resolve_dot_path_with_found(data, f"contract.{key}")
+            if value is _MISSING:
+                value = None
+        values[key] = value
     return values
 
 

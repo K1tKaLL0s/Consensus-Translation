@@ -52,12 +52,19 @@ def test_resolve_dot_path_returns_nested_value_and_none_for_missing():
 
 def test_extract_page_data_maps_runtime_payload_values():
     payload = {
-        "stage_status": {
-            "current": "review",
-            "progress": 0.8,
-            "retry_count": 1,
-            "error_code": None,
-            "error_message": None,
+        "contract": {
+            "job_id": "job-123",
+            "mode": "local",
+            "source_lang": "zh",
+            "target_lang": "ja",
+            "topic": "travel",
+            "stage_status": {
+                "current": "review",
+                "progress": 0.8,
+                "retry_count": 1,
+                "error_code": None,
+                "error_message": None,
+            },
         },
         "weights": {"token": 0.4},
         "token_score": 0.45,
@@ -68,9 +75,14 @@ def test_extract_page_data_maps_runtime_payload_values():
         "decision_reason": "left-score-greater-or-equal",
     }
 
+    config = extract_page_data("config", payload)
     monitor = extract_page_data("monitor", payload)
     mdwc = extract_page_data("mdwc", payload)
 
+    assert config["job_id"] == "job-123"
+    assert config["source_lang"] == "zh"
+    assert config["target_lang"] == "ja"
+    assert config["topic"] == "travel"
     assert monitor["stage_status.current"] == "review"
     assert monitor["stage_status.progress"] == 0.8
     assert mdwc["token_score"] == 0.45
