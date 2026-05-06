@@ -202,10 +202,12 @@ def test_local_job_exports_audit_json_when_path_is_provided(monkeypatch, tmp_pat
         audit_path=audit_path,
     )
 
+    assert result["audit_exported"] is True
     assert audit_path.exists()
     audit_payload = json.loads(audit_path.read_text(encoding="utf-8"))
     assert audit_payload["final_text"] == result["final_text"]
     assert audit_payload["winner"] == result["winner"]
+    assert audit_payload["audit_exported"] is True
     assert audit_payload["minimum_log_level"] == "INFO"
     assert audit_payload["contract"]["stage_status"]["current"] == StageStatus.FINALIZE.value
 
@@ -375,3 +377,50 @@ def test_local_mode_error_path_sets_structured_contract_error(monkeypatch):
 
     assert captured_contract.stage_status.error_code == "ENGINE_FAILURE"
     assert captured_contract.stage_status.error_message == "engine exploded"
+
+
+def test_local_mode_error_path_sets_structured_contract_error_for_engine_b(monkeypatch):
+    captured_contract = TranslationJobContract(
+        job_id="job-structured-error-b",
+        mode="local",
+        source_lang="zh",
+        target_lang="ja",
+        topic="general",
+    )
+
+    def fake_new_job(_cls, mode, source_lang, target_lang, topic):
+        assert mode == "local"
+        assert source_lang == "zh"
+        assert target_lang == "ja"
+        assert topic == "general"
+        return captured_contract
+
+    def engine_a_ok(_self, _text, _source, _target):
+        return "ok", 0.8
+
+    def engine_b_boom(*_args, **_kwargs):
+        raise RuntimeError("engine b exploded")
+
+    monkeypatch.setattr(
+        "consensus_translation.workflows.TranslationJobContract.new_job",
+        classmethod(fake_new_job),
+    )
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineA.translate",
+        engine_a_ok,
+    )
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineB.translate",
+        engine_b_boom,
+    )
+
+    with pytest.raises(RuntimeError, match="engine b exploded"):
+        run_local_job(
+            text="你好",
+            source_lang="zh",
+            target_lang="ja",
+            topic="general",
+        )
+
+    assert captured_contract.stage_status.error_code == "ENGINE_FAILURE"
+    assert captured_contract.stage_status.error_message == "engine b exploded"

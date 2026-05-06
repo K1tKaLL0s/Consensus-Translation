@@ -147,8 +147,8 @@ def run_local_job(
     }
 
     if audit_path is not None:
-        export_audit_payload(result, audit_path)
         result["audit_exported"] = True
+        export_audit_payload(result, audit_path)
 
     return result
 
