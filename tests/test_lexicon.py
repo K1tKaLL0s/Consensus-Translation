@@ -106,3 +106,70 @@ def test_export_topic_returns_full_three_layer_payload(tmp_path):
         "phrases": {},
         "style_rules": {},
     }
+
+
+def test_load_v1_flat_schema_migrates_entries_into_terms(tmp_path):
+    store_file = tmp_path / "lexicon.json"
+    store_file.write_text(
+        json.dumps({"travel": {"车站": "駅", "机场": "空港"}}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    repo = LexiconRepo(store_path=store_file)
+
+    assert repo.export_topic("travel") == {
+        "terms": {"车站": "駅", "机场": "空港"},
+        "phrases": {},
+        "style_rules": {},
+    }
+
+
+def test_load_partial_v2_schema_preserves_terms_layer_data(tmp_path):
+    store_file = tmp_path / "lexicon.json"
+    store_file.write_text(
+        json.dumps(
+            {
+                "travel": {
+                    "terms": {"车站": "駅"},
+                    "unrelated": "kept out of layered data",
+                }
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    repo = LexiconRepo(store_path=store_file)
+
+    assert repo.find("travel", "车站") == "駅"
+    assert repo.export_topic("travel") == {
+        "terms": {"车站": "駅"},
+        "phrases": {},
+        "style_rules": {},
+    }
+
+
+def test_load_partial_v2_filters_malformed_layer_values_safely(tmp_path):
+    store_file = tmp_path / "lexicon.json"
+    store_file.write_text(
+        json.dumps(
+                {
+                    "travel": {
+                        "terms": ["not", "a", "dict"],
+                        "phrases": {"greeting": "こんにちは", "bad_num": 123, "bad_null": None},
+                        "style_rules": {"formal": "丁寧", "bad": None},
+                        "车站": "駅",
+                    }
+                },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    repo = LexiconRepo(store_path=store_file)
+
+    assert repo.export_topic("travel") == {
+        "terms": {},
+        "phrases": {"greeting": "こんにちは"},
+        "style_rules": {"formal": "丁寧"},
+    }

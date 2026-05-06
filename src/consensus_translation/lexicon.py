@@ -34,12 +34,6 @@ class LexiconRepo:
     def _empty_layers(cls) -> dict[str, dict[str, str]]:
         return {key: {} for key in cls._LAYER_KEYS}
 
-    @classmethod
-    def _is_layered_topic(cls, value: object) -> bool:
-        if not isinstance(value, dict):
-            return False
-        return all(k in value for k in cls._LAYER_KEYS)
-
     def _load_store(self) -> dict[str, dict[str, dict[str, str]]]:
         if not self._store_path.exists():
             return {}
@@ -54,16 +48,18 @@ class LexiconRepo:
                 continue
 
             layers = self._empty_layers()
-            if self._is_layered_topic(rows):
-                for layer in self._LAYER_KEYS:
-                    raw_layer = rows.get(layer)
-                    if isinstance(raw_layer, dict):
-                        layers[layer] = {
-                            key: value
-                            for key, value in raw_layer.items()
-                            if isinstance(key, str) and isinstance(value, str)
-                        }
-            else:
+            has_layer_dict = False
+            for layer in self._LAYER_KEYS:
+                raw_layer = rows.get(layer)
+                if isinstance(raw_layer, dict):
+                    has_layer_dict = True
+                    layers[layer] = {
+                        key: value
+                        for key, value in raw_layer.items()
+                        if isinstance(key, str) and isinstance(value, str)
+                    }
+
+            if not has_layer_dict:
                 layers["terms"] = {
                     key: value
                     for key, value in rows.items()
