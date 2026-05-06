@@ -10,24 +10,28 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 
-from consensus_translation.contracts import TranslationJobContract
 from app import PAGE_FIELD_MAP
 
 
-def test_monitor_page_uses_contract_fields_only():
-    contract_fields = set(TranslationJobContract.model_fields.keys())
-    monitor_fields = set(PAGE_FIELD_MAP["monitor"])
+def test_monitor_page_uses_plan_defined_status_fields():
+    assert PAGE_FIELD_MAP["monitor"] == [
+        "stage_status.current",
+        "stage_status.progress",
+        "stage_status.retry_count",
+        "stage_status.error_code",
+        "stage_status.error_message",
+    ]
 
-    assert monitor_fields == contract_fields
 
-
-def test_mdwc_page_contains_explainability_fields():
+def test_mdwc_page_contains_plan_defined_subset():
     mdwc_fields = set(PAGE_FIELD_MAP["mdwc"])
 
     assert {
+        "weights",
         "token_score",
         "sentence_score",
         "segment_score",
         "user_prior",
-        "locked_term_ok",
+        "final_score",
+        "decision_reason",
     }.issubset(mdwc_fields)

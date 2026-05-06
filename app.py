@@ -5,48 +5,60 @@ try:
 except ModuleNotFoundError:  # pragma: no cover
     st = None
 
-from consensus_translation.config import AppSettings
 from consensus_translation.contracts import TranslationJobContract
 
 
 PAGE_FIELD_MAP: dict[str, list[str]] = {
     "config": [
-        "contract_version",
-        "default_granularity",
-        "mdwc_weights",
+        "job_id",
+        "mode",
+        "source_lang",
+        "target_lang",
+        "topic",
+        "domain_tags",
+        "granularity",
     ],
-    "monitor": list(TranslationJobContract.model_fields.keys()),
+    "monitor": [
+        "stage_status.current",
+        "stage_status.progress",
+        "stage_status.retry_count",
+        "stage_status.error_code",
+        "stage_status.error_message",
+    ],
     "compare": [
-        "left_text",
-        "right_text",
-        "left_score",
-        "right_score",
-        "winner",
-        "final_score",
-        "needs_review",
+        "cand_a",
+        "cand_b",
+        "token_diff",
+        "sentence_diff",
+        "segment_diff",
+        "overlap_score",
+        "confidence_a",
+        "confidence_b",
+        "term_consistency",
     ],
     "mdwc": [
+        "weights",
         "token_score",
         "sentence_score",
         "segment_score",
         "user_prior",
-        "locked_term_ok",
-        "weighted_score",
+        "final_score",
+        "decision_reason",
     ],
     "revision": [
-        "topic",
-        "source",
-        "target",
-        "diff_ratio",
+        "user_revision",
+        "diff",
         "special_flag",
-        "user_prior_delta",
+        "lexicon_updates",
+        "theme_bucket",
+        "update_status",
     ],
     "pretrain_report": [
-        "mode",
-        "base_result",
-        "validation_text",
+        "validation_metrics",
+        "improvement_rate",
+        "conflict_terms",
+        "uncategorized_terms",
         "calibration_summary",
-        "lexicon_updates",
     ],
 }
 
