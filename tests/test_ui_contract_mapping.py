@@ -10,7 +10,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 
-from app import PAGE_FIELD_MAP, extract_page_data, resolve_dot_path
+from app import PAGE_FIELD_MAP, PAGE_LABEL_MAP, extract_page_data, resolve_dot_path
 
 
 def test_monitor_page_uses_plan_defined_status_fields():
@@ -135,3 +135,26 @@ def test_ui_does_not_expose_phase3_ai_mode_controls():
     all_fields = {field for fields in PAGE_FIELD_MAP.values() for field in fields}
 
     assert forbidden.isdisjoint(all_fields)
+
+
+def test_page_field_map_keys_stay_stable_for_backend_contract():
+    assert list(PAGE_FIELD_MAP.keys()) == [
+        "config",
+        "monitor",
+        "compare",
+        "mdwc",
+        "revision",
+        "pretrain_report",
+    ]
+
+
+def test_page_label_map_uses_chinese_labels_for_display_only():
+    assert PAGE_LABEL_MAP == {
+        "config": "配置",
+        "monitor": "监控",
+        "compare": "对比",
+        "mdwc": "MDWC评分",
+        "revision": "修订",
+        "pretrain_report": "预训练报告",
+    }
+    assert set(PAGE_LABEL_MAP.keys()) == set(PAGE_FIELD_MAP.keys())

@@ -69,6 +69,15 @@ PAGE_FIELD_MAP: dict[str, list[str]] = {
     ],
 }
 
+PAGE_LABEL_MAP: dict[str, str] = {
+    "config": "配置",
+    "monitor": "监控",
+    "compare": "对比",
+    "mdwc": "MDWC评分",
+    "revision": "修订",
+    "pretrain_report": "预训练报告",
+}
+
 
 _MISSING = object()
 
@@ -108,19 +117,19 @@ def main() -> None:
     if st is None:  # pragma: no cover
         raise RuntimeError("streamlit is required to run the UI")
 
-    st.set_page_config(page_title="Consensus Translation V1", layout="wide")
-    st.title("Consensus Translation V1")
+    st.set_page_config(page_title="共识翻译 V1", layout="wide")
+    st.title("共识翻译 V1")
 
     if "latest_payload" not in st.session_state:
         st.session_state["latest_payload"] = {}
 
-    st.sidebar.header("Run Jobs")
-    source_lang = st.sidebar.text_input("Source Lang", value="zh")
-    target_lang = st.sidebar.text_input("Target Lang", value="ja")
-    topic = st.sidebar.text_input("Topic", value="general")
+    st.sidebar.header("任务运行")
+    source_lang = st.sidebar.text_input("源语言", value="zh")
+    target_lang = st.sidebar.text_input("目标语言", value="ja")
+    topic = st.sidebar.text_input("主题", value="general")
 
-    local_text = st.sidebar.text_area("Local Text", value="你好")
-    if st.sidebar.button("Run Local Job"):
+    local_text = st.sidebar.text_area("本地文本", value="你好")
+    if st.sidebar.button("运行本地任务"):
         st.session_state["latest_payload"] = run_local_job(
             text=local_text,
             source_lang=source_lang,
@@ -128,9 +137,9 @@ def main() -> None:
             topic=topic,
         )
 
-    train_text = st.sidebar.text_area("Pretrain Text", value="车站")
-    validation_text = st.sidebar.text_area("Validation Text", value="列车")
-    if st.sidebar.button("Run Pretrain Job"):
+    train_text = st.sidebar.text_area("预训练文本", value="车站")
+    validation_text = st.sidebar.text_area("验证文本", value="列车")
+    if st.sidebar.button("运行预训练任务"):
         st.session_state["latest_payload"] = run_pretrain_job(
             train_text=train_text,
             validation_text=validation_text,
@@ -139,10 +148,12 @@ def main() -> None:
             topic=topic,
         )
 
-    page = st.sidebar.selectbox("Page", list(PAGE_FIELD_MAP.keys()))
+    label_to_key = {label: key for key, label in PAGE_LABEL_MAP.items()}
+    selected_label = st.sidebar.selectbox("页面", list(label_to_key.keys()))
+    page = label_to_key[selected_label]
     page_data = extract_page_data(page, st.session_state.get("latest_payload"))
 
-    st.subheader(page)
+    st.subheader(PAGE_LABEL_MAP[page])
     st.json(page_data)
 
 
