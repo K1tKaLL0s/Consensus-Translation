@@ -96,3 +96,22 @@
 - Windows 下 HuggingFace 缓存可能出现 symlink 警告，不影响基本运行
 - Marian tokenizer 可能提示安装 `sacremoses`，属于建议项
 - 词库默认写入 `%LOCALAPPDATA%\ConsensusTranslation\lexicon.json`，部署时注意权限与路径策略
+
+## 七、Task 3 预发布核验补录（2026-05-07）
+
+1. 指定契约与流程用例核验
+   - 命令：`pytest -v tests/test_ui_contract_mapping.py tests/test_workflows.py`
+   - 结果：`25 passed, 3 warnings in 50.93s`
+   - 说明：UI 契约映射、中文 UI 显示约束、本地流程 Gate-L 与异常结构化字段均通过。
+
+2. 全量回归核验
+   - 命令：`pytest -q`
+   - 结果：`53 passed, 3 warnings in 57.04s`
+   - 说明：当前仓库全部测试通过，未出现失败或跳过导致的阻断项。
+
+3. 启动检查（Streamlit）
+   - 命令：`powershell -ExecutionPolicy Bypass -File .\run_streamlit.ps1`
+   - 启动证据：输出 `deps-ok`，并显示
+     - `Local URL: http://localhost:8502`
+     - `Network URL: http://192.168.5.4:8502`
+   - 进程处置：验证到服务进入运行态（`JOB_STATE=Running`）后，已安全停止后台 Job，避免占用端口。
