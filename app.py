@@ -1,4 +1,5 @@
 from __future__ import annotations
+from io import BytesIO
 from pathlib import Path
 import sys
 
@@ -115,6 +116,66 @@ def extract_page_data(page: str, payload: dict[str, object] | None) -> dict[str,
 
 def get_page_select_keys() -> list[str]:
     return list(PAGE_FIELD_MAP.keys())
+
+
+def extract_uploaded_text(uploaded_file: object | None) -> tuple[str, dict[str, object]]:
+    metadata: dict[str, object] = {
+        "ok": False,
+        "file_name": None,
+        "file_type": None,
+        "file_ext": None,
+        "reason": "no_file",
+    }
+    if uploaded_file is None:
+        return "", metadata
+
+    file_name = str(getattr(uploaded_file, "name", "") or "")
+    file_type = str(getattr(uploaded_file, "type", "") or "")
+    file_ext = Path(file_name).suffix.lower()
+    metadata.update({"file_name": file_name, "file_type": file_type, "file_ext": file_ext})
+
+    getvalue = getattr(uploaded_file, "getvalue", None)
+    if not callable(getvalue):
+        metadata["reason"] = "invalid_file_obj"
+        return "", metadata
+
+    raw = getvalue()
+    if not isinstance(raw, (bytes, bytearray)):
+        metadata["reason"] = "invalid_file_bytes"
+        return "", metadata
+    raw_bytes = bytes(raw)
+
+    if file_ext in {".txt", ".md"}:
+        text = raw_bytes.decode("utf-8")
+        metadata.update({"ok": True, "reason": None})
+        return text, metadata
+
+    if file_ext == ".docx":
+        from docx import Document
+
+        doc = Document(BytesIO(raw_bytes))
+        text = "\n".join(p.text for p in doc.paragraphs)
+        metadata.update({"ok": True, "reason": None})
+        return text, metadata
+
+    metadata["reason"] = "unsupported_type"
+    return "", metadata
+
+
+def resolve_input_text(
+    manual_text: str | None,
+    uploaded_text: str | None,
+    uploaded_meta: dict[str, object] | None,
+) -> tuple[str, dict[str, object]]:
+    meta = dict(uploaded_meta or {})
+    upload_ok = bool(meta.get("ok"))
+    upload_text = uploaded_text or ""
+    if upload_ok and upload_text.strip():
+        meta["source"] = "upload"
+        return upload_text, meta
+
+    meta["source"] = "manual"
+    return manual_text or "", meta
 
 
 def main() -> None:

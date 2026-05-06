@@ -13,8 +13,10 @@ if str(SRC) not in sys.path:
 from app import (
     PAGE_FIELD_MAP,
     PAGE_LABEL_MAP,
+    extract_uploaded_text,
     extract_page_data,
     get_page_select_keys,
+    resolve_input_text,
     resolve_dot_path,
 )
 
@@ -174,3 +176,79 @@ def test_page_label_values_are_unique_to_avoid_display_collisions():
 
 def test_page_selector_options_use_stable_contract_keys():
     assert get_page_select_keys() == list(PAGE_FIELD_MAP.keys())
+
+
+class DummyUpload:
+    def __init__(self, name: str, file_type: str, data: bytes) -> None:
+        self.name = name
+        self.type = file_type
+        self._data = data
+
+    def getvalue(self) -> bytes:
+        return self._data
+
+
+def test_extract_uploaded_text_supports_utf8_plain_text_and_md():
+    txt_upload = DummyUpload("note.txt", "text/plain", "你好 world".encode("utf-8"))
+    md_upload = DummyUpload("note.md", "text/markdown", "# 标题\n内容".encode("utf-8"))
+
+    txt_text, txt_meta = extract_uploaded_text(txt_upload)
+    md_text, md_meta = extract_uploaded_text(md_upload)
+
+    assert txt_text == "你好 world"
+    assert txt_meta["ok"] is True
+    assert txt_meta["file_type"] == "text/plain"
+    assert md_text == "# 标题\n内容"
+    assert md_meta["ok"] is True
+    assert md_meta["file_type"] == "text/markdown"
+
+
+def test_extract_uploaded_text_supports_docx_from_bytes():
+    from io import BytesIO
+
+    from docx import Document
+
+    buf = BytesIO()
+    doc = Document()
+    doc.add_paragraph("第一段")
+    doc.add_paragraph("Second line")
+    doc.save(buf)
+
+    upload = DummyUpload(
+        "sample.docx",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        buf.getvalue(),
+    )
+
+    text, meta = extract_uploaded_text(upload)
+
+    assert text == "第一段\nSecond line"
+    assert meta["ok"] is True
+    assert meta["file_ext"] == ".docx"
+
+
+def test_extract_uploaded_text_marks_unsupported_type_as_non_ok():
+    upload = DummyUpload("sample.pdf", "application/pdf", b"%PDF")
+
+    text, meta = extract_uploaded_text(upload)
+
+    assert text == ""
+    assert meta["ok"] is False
+    assert meta["reason"] == "unsupported_type"
+
+
+def test_resolve_input_text_prefers_uploaded_non_empty_text():
+    chosen_text, chosen_meta = resolve_input_text("手动输入", "上传文本", {"ok": True})
+
+    assert chosen_text == "上传文本"
+    assert chosen_meta["source"] == "upload"
+
+
+def test_resolve_input_text_falls_back_to_manual_when_upload_empty_or_not_ok():
+    text_empty, meta_empty = resolve_input_text("手动输入", "   ", {"ok": True})
+    text_bad, meta_bad = resolve_input_text("手动输入", "上传文本", {"ok": False})
+
+    assert text_empty == "手动输入"
+    assert meta_empty["source"] == "manual"
+    assert text_bad == "手动输入"
+    assert meta_bad["source"] == "manual"
