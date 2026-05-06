@@ -118,6 +118,12 @@ powershell -ExecutionPolicy Bypass -File .\run_streamlit.ps1
 - `Target Lang`：目标语言（建议 `zh/en/ja`）
 - `Topic`：主题标签（如 `myth`、`history`、`science`）
 
+### 5.2.1 中文 UI 文案与契约键名
+
+- 中文 UI 文案用于界面展示与操作引导，优先保证中文可读性。
+- 契约字段键名保持英文，用于接口协议、日志与测试断言，不随界面文案翻译。
+- 例如结果页显示中文说明时，底层字段仍为 `final_text`、`decision_reason`、`final_score`。
+
 ### 5.3 执行任务
 
 - 点击 `Run Local Job`：执行本地模式
