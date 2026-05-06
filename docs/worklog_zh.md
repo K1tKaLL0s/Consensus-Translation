@@ -59,7 +59,7 @@
 ## 四、已知注意事项
 
 - 桌面模式依赖 `PyQt6`，需在项目虚拟环境安装依赖后运行。
-- 首次使用建议执行：`\.\run.ps1 -Init`。
+- 首次使用建议执行：`.\run.ps1 -Init`。
 - 如 MySQL 未安装或服务未启动，系统会输出可执行引导命令。
 
 ## 五、后续建议
@@ -85,3 +85,22 @@
 - 预留图片资源目录：`assets/images/`（当前版本不强依赖业务图片资源）。
 - PyQt 启动新增离线提醒：未联网时提示“当前未联网，部分功能受限”，但不阻断运行。
 - 保持现有运行基础不变：`run.ps1`、Web/API 启动路径继续可用。
+
+## 八、PyQt 交互式一期（Task 7）
+
+- 主窗口改为 **PyQt 交互式面板**：采用 `QTabWidget` 承载翻译面板、训练面板与结果面板，替代静态分屏。
+- 翻译工作流增加 **修订/确认** 双动作：先修订再确认，只有确认后才允许持久化确认状态。
+- 结果区执行 **复制按钮解锁** 规则：初始禁用，翻译修订阶段保持禁用，仅在确认完成后解锁复制。
+- 训练工作流补充兜底行为：未上传参考文本时，可回退读取 `references/{source_declaration}.txt`。
+- 离线提示策略更新：保留“当前未联网，部分功能受限”提醒，且 **离线提醒为非阻塞**，不使用阻塞式模态框，不影响界面继续操作。
+
+### Task 7 规格复核验证记录
+
+- `pytest -q`：`147 passed in 6.17s`，状态：通过。
+- `./scripts/build_exe.ps1 -Clean`：PyInstaller 输出 `Build complete!`，并生成 `dist/CnJpTranslateDesktop.exe`，状态：通过。
+- `./scripts/smoke_test_exe.ps1`：输出 `Smoke test passed`，状态：通过。
+
+### 文档断言测试（红-绿）补充说明
+
+- 本次为 Task 7 规格复核新增文档断言测试 `test_worklog_contains_task7_spec_review_verification_record`。
+- 在补充验证记录内容前，断言预期失败（红）；补充 `docs/worklog_zh.md` 后重新执行转为通过（绿），完成 fail-then-fix 验证闭环。
