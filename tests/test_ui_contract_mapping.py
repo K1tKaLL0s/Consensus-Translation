@@ -87,3 +87,33 @@ def test_extract_page_data_maps_runtime_payload_values():
     assert monitor["stage_status.progress"] == 0.8
     assert mdwc["token_score"] == 0.45
     assert mdwc["decision_reason"] == "left-score-greater-or-equal"
+
+
+def test_all_page_fields_resolve_from_runtime_or_contract_fallback():
+    payload = {
+        "stage_status": {
+            "current": None,
+        },
+        "contract": {
+            "stage_status": {
+                "current": "finalize",
+                "progress": 1.0,
+                "retry_count": 0,
+                "error_code": None,
+                "error_message": None,
+            }
+        },
+        "final_score": 0.9,
+    }
+
+    data = extract_page_data("monitor", payload)
+
+    assert data["stage_status.current"] == "finalize"
+    assert data["stage_status.progress"] == 1.0
+
+
+def test_ui_does_not_expose_phase3_ai_mode_controls():
+    forbidden = {"ai_mode", "ai_vote", "ai_iteration", "multi_model"}
+    all_fields = {field for fields in PAGE_FIELD_MAP.values() for field in fields}
+
+    assert forbidden.isdisjoint(all_fields)
