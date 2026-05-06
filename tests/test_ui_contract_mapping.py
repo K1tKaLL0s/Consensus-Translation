@@ -89,11 +89,8 @@ def test_extract_page_data_maps_runtime_payload_values():
     assert mdwc["decision_reason"] == "left-score-greater-or-equal"
 
 
-def test_all_page_fields_resolve_from_runtime_or_contract_fallback():
+def test_monitor_fields_fallback_to_contract_when_runtime_key_missing():
     payload = {
-        "stage_status": {
-            "current": None,
-        },
         "contract": {
             "stage_status": {
                 "current": "finalize",
@@ -110,6 +107,27 @@ def test_all_page_fields_resolve_from_runtime_or_contract_fallback():
 
     assert data["stage_status.current"] == "finalize"
     assert data["stage_status.progress"] == 1.0
+
+
+def test_monitor_field_preserves_runtime_none_without_contract_fallback():
+    payload = {
+        "stage_status": {
+            "current": None,
+        },
+        "contract": {
+            "stage_status": {
+                "current": "finalize",
+                "progress": 1.0,
+                "retry_count": 0,
+                "error_code": None,
+                "error_message": None,
+            }
+        },
+    }
+
+    data = extract_page_data("monitor", payload)
+
+    assert data["stage_status.current"] is None
 
 
 def test_ui_does_not_expose_phase3_ai_mode_controls():

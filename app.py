@@ -94,11 +94,11 @@ def extract_page_data(page: str, payload: dict[str, object] | None) -> dict[str,
     data = payload or {}
     for key in PAGE_FIELD_MAP[page]:
         found, value = _resolve_dot_path_with_found(data, key)
-        if (not found) or value is None:
+        if not found:
             fallback_found, fallback_value = _resolve_dot_path_with_found(data, f"contract.{key}")
             if fallback_found:
                 value = fallback_value
-            elif not found:
+            else:
                 value = None
         values[key] = value
     return values
