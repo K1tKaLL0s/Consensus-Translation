@@ -15,7 +15,16 @@ import consensus_translation.health as health_module
 from consensus_translation.workflows import run_local_job, run_pretrain_job
 
 
-def test_pretrain_returns_calibration_summary_and_updates():
+def test_pretrain_returns_calibration_summary_and_updates(monkeypatch):
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineA.translate",
+        lambda _self, _text, _source, _target: ("station", 0.8),
+    )
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineB.translate",
+        lambda _self, _text, _source, _target: ("train station", 0.6),
+    )
+
     result = run_pretrain_job(
         train_text="车站",
         validation_text="列车",
@@ -28,7 +37,7 @@ def test_pretrain_returns_calibration_summary_and_updates():
     assert result["calibration_summary"] == "pretrain-complete"
     assert result["validation_text"] == "列车"
     assert result["base_result"]["mode"] == "local"
-    assert result["base_result"]["final_text"] == "A::车站"
+    assert result["base_result"]["final_text"] == "station"
     assert set(result["validation_metrics"].keys()) == {
         "bleu",
         "comet",
@@ -42,7 +51,16 @@ def test_pretrain_returns_calibration_summary_and_updates():
     assert result["lexicon_updates"] == [{"topic": "travel", "special_flag": False}]
 
 
-def test_local_job_marks_needs_review_when_scores_low():
+def test_local_job_marks_needs_review_when_scores_low(monkeypatch):
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineA.translate",
+        lambda _self, _text, _source, _target: ("hello", 0.45),
+    )
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineB.translate",
+        lambda _self, _text, _source, _target: ("hi", 0.4),
+    )
+
     result = run_local_job(
         text="你好",
         source_lang="zh",
@@ -81,7 +99,7 @@ def test_local_job_marks_needs_review_when_scores_low():
     assert expected_min_keys.issubset(set(result.keys()))
     assert result["contract"]["stage_status"]["current"] == StageStatus.FINALIZE.value
     assert result["contract"]["stage_status"]["progress"] == 1.0
-    assert result["final_text"] == "A::你好"
+    assert result["final_text"] == "hello"
     assert result["final_score"] == pytest.approx(0.4525)
     assert result["needs_review"] is True
 

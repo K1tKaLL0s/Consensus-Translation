@@ -1,0 +1,149 @@
+# 共识翻译 V1 用户手册（中文）
+
+## 1. 软件定位
+
+本软件是面向游戏文本与流行小说场景的中英日翻译工具，强调：
+
+- 专有名词场景可解释性
+- 多引擎候选比对
+- 词库可持续进化
+- 可视化流程观测
+
+当前 V1 采用双本地引擎：
+
+- Engine A: Marian（Opus-MT）
+- Engine B: Meta NLLB-200
+
+## 2. 理论基础与算法逻辑
+
+### 2.1 MDWC（多维加权共识）
+
+系统通过多维评分对候选译文进行裁决，核心维度包括：
+
+- `token_score`：词级稳定度（术语层）
+- `sentence_score`：句义与可读性
+- `segment_score`：段落风格一致性
+- `user_prior`：用户偏好与历史修订趋势
+
+综合公式由权重配置驱动，输出 `final_score` 与 `decision_reason`。
+
+### 2.2 三级粒度结构
+
+输入在内部按词/句/段组织（Token/Sentence/Segment），便于在复杂文本中定位“仅局部词项异常”的场景。
+
+### 2.3 契约驱动
+
+每次任务生成统一 `TranslationJobContract`，用于承载：
+
+- 任务身份信息
+- 阶段状态（current/progress/retry/error）
+- 流程追踪字段
+
+UI 仅渲染契约与工作流输出字段，确保前后端一致。
+
+## 3. 软件工作流
+
+### 3.1 本地模式（local）
+
+`ingest -> segment -> engine -> cross_check -> mdwc -> review -> finalize`
+
+产出：
+
+- 最终译文与分数
+- 双候选比对信息
+- MDWC 决策理由
+- 契约快照
+
+### 3.2 预训练模式（pretrain）
+
+在本地模式基础上进行词库校准和输出增强：
+
+- 词库更新
+- 验证指标字段
+- 提升率字段
+- 冲突与未分类项字段
+
+## 4. 安装与启动
+
+### 4.1 推荐环境
+
+- Windows + Python 3.13（当前验证环境）
+- 可访问 HuggingFace 模型下载网络
+
+### 4.2 依赖安装
+
+在项目根目录执行：
+
+```powershell
+E:\Ana\python.exe -m pip install -r requirements.txt
+```
+
+### 4.3 启动方式
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\run_streamlit.ps1
+```
+
+启动成功后，终端应显示：
+
+- `deps-ok`
+- `Local URL: http://localhost:8501`
+
+## 5. 使用方法
+
+### 5.1 打开界面
+
+浏览器访问 `http://localhost:8501`。
+
+### 5.2 侧栏参数
+
+- `Source Lang`：源语言（建议 `zh/en/ja`）
+- `Target Lang`：目标语言（建议 `zh/en/ja`）
+- `Topic`：主题标签（如 `myth`、`history`、`science`）
+
+### 5.3 执行任务
+
+- 点击 `Run Local Job`：执行本地模式
+- 点击 `Run Pretrain Job`：执行预训练模式
+
+### 5.4 查看结果
+
+在 `Page` 下拉中选择：
+
+- `config`：任务配置字段
+- `monitor`：阶段状态与错误字段
+- `compare`：候选对比字段
+- `mdwc`：加权裁决字段
+- `revision`：修订相关字段
+- `pretrain_report`：预训练报告字段
+
+## 6. 文件与数据说明
+
+- 词库默认路径：`%LOCALAPPDATA%\ConsensusTranslation\lexicon.json`
+- 模型缓存路径：HuggingFace 默认缓存目录（首次运行会自动下载）
+
+## 7. 使用须知
+
+1. 首次运行模型下载较慢，属于正常现象。
+2. 若网络受限，模型下载会失败，请先确保可访问 HuggingFace。
+3. 引擎输出质量受模型覆盖方向影响，部分语对会走中转逻辑。
+4. 当前 V1 重点是“可运行 + 可观察 + 可迭代”，非最终质量版本。
+5. 预训练指标字段已可用，但仍建议后续接入真实验证集评分模块。
+
+## 8. 常见问题
+
+### Q1: 终端有 `sacremoses` 提示怎么办？
+
+这是 Marian 的建议依赖提示，可安装以提升分词兼容性：
+
+```powershell
+E:\Ana\python.exe -m pip install sacremoses
+```
+
+### Q2: 看到 HuggingFace symlink 警告是否失败？
+
+不是失败，属于 Windows 缓存策略提示，通常不影响翻译功能。
+
+### Q3: 为什么有时翻译速度变慢？
+
+可能是首次加载模型或首次触发某语对模型下载。二次运行通常更快。

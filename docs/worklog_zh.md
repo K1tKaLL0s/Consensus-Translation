@@ -1,34 +1,112 @@
-# 工作日志（项目失败归档）
+# 工作日志（2026-05-07 本轮重构与引擎落地）
 
-## 一、归档说明
+## 一、本轮目标
 
-本仓库已按项目发起人要求清空，仅保留失败原因说明。
+本轮目标是将项目从“流程可运行但翻译引擎占位”升级为“本地双引擎可用、UI 与后端契约对齐、可验证可观测”的初步可运行状态。
 
-## 二、失败结论
+本轮完成的核心方向：
 
-本项目未达到预期目标，核心失败原因如下：
+- 统一并强化本地双引擎方案（Engine A: Marian / Engine B: Meta NLLB-200）
+- 强化流程契约化（TranslationJobContract 全程贯穿）
+- 强化 UI 动态映射（按运行态 payload 展示，不再仅显示静态字段）
+- 强化健康检查与预训练输出
+- 增补测试与启动可用性验证
 
-1. 运行稳定性不足
-   - `run.ps1` 多模式启动链路存在不稳定与环境依赖差异，导致 API/桌面端联动可用性不一致。
+## 二、实现内容与编程逻辑
 
-2. 网络状态判定存在环境适配问题
-   - 初期网络探测策略依赖单一目标，容易在特定网络策略下误判“离线”，影响用户对系统状态的判断。
+### 1) 双本地引擎方案
 
-3. 端到端交付质量与预期不一致
-   - 在 EXE、API、Web、PyQt 组合场景下，实际体验与“稳定可循环工作流”目标存在落差。
+- Engine A 使用 Marian（Opus-MT）
+  - 引擎名：`marian-opus-mt`
+  - 支持 `zh/en/ja` 归一化
+  - 先尝试直连模型对（例如 `zh-en`）
+  - 若无直连模型且不涉及英文直连，采用 `pivot(en)` 中转
+- Engine B 使用 Meta NLLB-200
+  - 引擎名：`meta-nllb-200`
+  - 模型：`facebook/nllb-200-distilled-600M`
+  - 通过 NLLB 语言代码映射执行翻译（`zho_Hans` / `eng_Latn` / `jpn_Jpan`）
 
-4. 依赖与环境一致性管理不足
-   - 不同虚拟环境/依赖状态下存在启动与运行差异，增加了复现和运维成本。
+### 2) 本地模式工作流（run_local_job）
 
-## 三、处理决定
+- 流程分阶段推进：`ingest -> segment -> engine -> cross_check -> mdwc -> review -> finalize`
+- 每阶段更新 `stage_status.current` 与 `stage_status.progress`
+- 产出内容同时包含：
+  - 最终翻译结果（`final_text` / `final_score` / `needs_review`）
+  - 候选对比数据（`cand_a` / `cand_b` 等）
+  - MDWC 可解释字段（`weights` / `token_score` / `decision_reason` 等）
+  - `contract` 快照（用于 UI 与审计）
 
-- 终止本轮迭代。
-- 清空仓库代码与资源，仅保留失败归档文档。
-- 后续如重启项目，建议先完成：
-  1. 启动链路标准化（统一进程管理与健康检查）
-  2. 网络探测多目标策略与可配置化
-  3. 环境锁定与可复现实验基线
+### 3) 预训练模式（run_pretrain_job）
 
-## 四、时间
+- 调用本地模式生成基础结果
+- 应用用户修订写入词库
+- 输出校准字段：
+  - `validation_metrics`
+  - `improvement_rate`
+  - `conflict_terms`
+  - `uncategorized_terms`
+- 同样输出 `contract`（结束于 `finalize`）
 
-- 归档日期：2026-05-06
+### 4) 词库持久化
+
+- 词库仓储改为可落盘 JSON
+- 默认路径优先使用 `%LOCALAPPDATA%\ConsensusTranslation\lexicon.json`
+- 支持注入 `store_path`（便于测试与迁移）
+- `apply_revision` 执行写回并返回反馈事件（`special_flag` / `user_prior_delta`）
+
+### 5) UI 与契约一致性
+
+- `PAGE_FIELD_MAP` 继续作为页面字段契约
+- 增加 dot-path 解析和回退逻辑：
+  - 先查 payload 根层
+  - 根层缺失时查 `contract.<field>`
+- 增加侧栏执行入口：可在 UI 内触发 local/pretrain 任务并展示对应页面数据
+
+### 6) 健康检查
+
+- `l1_process`: 检查 Streamlit 可导入状态
+- `l2_service`: 检查工作流执行能力（异常时返回失败详情）
+- `l3_task`: 端到端最小任务冒烟并回报结果详情
+
+## 三、验证结果（本轮最新）
+
+执行命令与结果如下：
+
+1. 全量测试 + 覆盖率
+   - 命令：`pytest -v --cov=src/consensus_translation --cov-report=term-missing`
+   - 结果：`25 passed`
+   - 总覆盖率：`89%`
+
+2. 启动冒烟
+   - 命令：`powershell -ExecutionPolicy Bypass -File .\run_streamlit.ps1`
+   - 结果：输出 `deps-ok`，并给出本地访问地址（`http://localhost:8501`）
+
+3. 双引擎翻译冒烟
+   - Marian：`Hello, world.`
+   - NLLB：`Hello, world.`
+
+## 四、待完成项目（下一阶段）
+
+1. 预训练指标真实化
+   - 当前 `validation_metrics` 为占位逻辑，需替换为基于验证集的真实计算
+
+2. 主题词库进化增强
+   - 当前为基础词条写入，尚未形成“短语/固定句式/写作逻辑”三层结构化索引
+
+3. 神话/历史/科学要素识别器
+   - 当前仅预留域标签，需补充实体识别与权重联动机制
+
+4. AI 辅助模式（最多 3 模型）
+   - 当前仅保留架构接口，尚未实现真实交火、投票与多轮迭代
+
+5. 工程化完善
+   - 增加环境初始化脚本
+   - 增加日志分级与任务审计导出
+   - 增加错误恢复与断点续跑能力
+
+## 五、运行注意事项
+
+- NLLB 首次运行会下载模型，首次耗时较长属正常
+- Windows 下 HuggingFace 缓存可能提示 symlink 警告，不影响基本运行
+- Marian tokenizer 可能提示安装 `sacremoses`，属于建议项
+- 词库默认写入 `%LOCALAPPDATA%`，部署时注意账户权限与路径策略

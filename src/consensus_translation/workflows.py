@@ -29,8 +29,8 @@ def run_local_job(
     update_stage(StageStatus.ENGINE, 0.45)
 
     try:
-        a_text, a_conf = engine_a.translate(text)
-        b_text, b_conf = engine_b.translate(text)
+        a_text, a_conf = engine_a.translate(text, source_lang, target_lang)
+        b_text, b_conf = engine_b.translate(text, source_lang, target_lang)
     except Exception as exc:
         contract.stage_status.error_code = "ENGINE_FAILURE"
         contract.stage_status.error_message = str(exc)
