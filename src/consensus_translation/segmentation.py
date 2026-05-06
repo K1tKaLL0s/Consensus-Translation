@@ -62,19 +62,23 @@ def build_hierarchy(text: str, domain_terms: set[str] | None = None) -> Hierarch
             token_index += 1
             seen_token_texts.add(base_token)
 
-        for term in terms:
-            if " " not in term:
-                continue
-            if term in segment_text and term not in seen_token_texts:
-                tokens.append(
-                    Token(
-                        id=f"tok-{token_index}",
-                        text=term,
-                        sentence_id=sentence_id,
-                        priority_term=True,
-                    )
+        phrase_terms = [
+            term
+            for term in terms
+            if " " in term and term in segment_text and term not in seen_token_texts
+        ]
+        phrase_terms.sort(key=lambda term: (segment_text.find(term), -len(term), term))
+
+        for term in phrase_terms:
+            tokens.append(
+                Token(
+                    id=f"tok-{token_index}",
+                    text=term,
+                    sentence_id=sentence_id,
+                    priority_term=True,
                 )
-                token_index += 1
-                seen_token_texts.add(term)
+            )
+            token_index += 1
+            seen_token_texts.add(term)
 
     return HierarchyTree(segments=segments, sentences=sentences, tokens=tokens)

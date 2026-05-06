@@ -58,3 +58,21 @@ def test_build_hierarchy_marks_domain_terms_as_priority_tokens():
     ]
     assert len(phrase_tokens) == 1
     assert phrase_tokens[0].priority_term is True
+
+
+def test_build_hierarchy_inserts_phrase_terms_in_deterministic_order_with_stable_ids():
+    text = "machine translation memory improves machine translation quality。"
+    domain_terms = {
+        "machine translation",
+        "translation memory",
+        "machine translation memory",
+    }
+
+    tree = build_hierarchy(text, domain_terms=domain_terms)
+
+    phrase_tokens = [token for token in tree.tokens if " " in token.text]
+    assert [(token.id, token.text) for token in phrase_tokens] == [
+        ("tok-8", "machine translation memory"),
+        ("tok-9", "machine translation"),
+        ("tok-10", "translation memory"),
+    ]
