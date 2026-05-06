@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 import sys
 
@@ -180,3 +181,77 @@ def test_health_report_surfaces_l2_failure_detail(monkeypatch):
 
     assert report["l2_service"]["ok"] is False
     assert "simulated workflow outage" in report["l2_service"]["detail"]
+
+
+def test_local_job_exports_audit_json_when_path_is_provided(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineA.translate",
+        lambda _self, _text, _source, _target: ("station", 0.8),
+    )
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineB.translate",
+        lambda _self, _text, _source, _target: ("train station", 0.6),
+    )
+
+    audit_path = tmp_path / "audit" / "local-job.json"
+    result = run_local_job(
+        text="车站",
+        source_lang="zh",
+        target_lang="ja",
+        topic="travel",
+        audit_path=audit_path,
+    )
+
+    assert audit_path.exists()
+    audit_payload = json.loads(audit_path.read_text(encoding="utf-8"))
+    assert audit_payload["final_text"] == result["final_text"]
+    assert audit_payload["winner"] == result["winner"]
+    assert audit_payload["minimum_log_level"] == "INFO"
+    assert audit_payload["contract"]["stage_status"]["current"] == StageStatus.FINALIZE.value
+
+
+def test_local_job_supports_resume_from_stage_and_increments_retry(monkeypatch):
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineA.translate",
+        lambda _self, _text, _source, _target: ("station", 0.8),
+    )
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineB.translate",
+        lambda _self, _text, _source, _target: ("train station", 0.6),
+    )
+
+    result = run_local_job(
+        text="车站",
+        source_lang="zh",
+        target_lang="ja",
+        topic="travel",
+        resume_from_stage=StageStatus.ENGINE,
+    )
+
+    assert result["checkpoint_used"] is True
+    assert result["resume_from_stage"] == StageStatus.ENGINE.value
+    assert result["contract"]["stage_status"]["retry_count"] == 1
+
+
+def test_local_job_audit_uses_minimum_log_level_env(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineA.translate",
+        lambda _self, _text, _source, _target: ("station", 0.8),
+    )
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineB.translate",
+        lambda _self, _text, _source, _target: ("train station", 0.6),
+    )
+    monkeypatch.setenv("CT_MIN_LOG_LEVEL", "warning")
+
+    audit_path = tmp_path / "audit" / "minimum-level.json"
+    run_local_job(
+        text="车站",
+        source_lang="zh",
+        target_lang="ja",
+        topic="travel",
+        audit_path=audit_path,
+    )
+
+    audit_payload = json.loads(audit_path.read_text(encoding="utf-8"))
+    assert audit_payload["minimum_log_level"] == "WARNING"

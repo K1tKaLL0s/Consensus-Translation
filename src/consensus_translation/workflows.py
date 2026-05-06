@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from consensus_translation.config import AppSettings
 from consensus_translation.contracts import StageStatus, TranslationJobContract
 from consensus_translation.domain_signals import extract_domain_signals
@@ -5,10 +7,16 @@ from consensus_translation.engines import LocalEngineA, LocalEngineB
 from consensus_translation.evaluation import evaluate_translation
 from consensus_translation.lexicon import LexiconRepo, RevisionPayload
 from consensus_translation.mdwc import DecisionInput, choose_candidate, score_candidate
+from consensus_translation.ops import export_audit_payload, resolve_minimum_log_level
 
 
 def run_local_job(
-    text: str, source_lang: str, target_lang: str, topic: str | None
+    text: str,
+    source_lang: str,
+    target_lang: str,
+    topic: str | None,
+    audit_path: str | Path | None = None,
+    resume_from_stage: StageStatus | str | None = None,
 ) -> dict[str, object]:
     settings = AppSettings()
     contract = TranslationJobContract.new_job(
@@ -21,6 +29,16 @@ def run_local_job(
     def update_stage(stage: StageStatus, progress: float) -> None:
         contract.stage_status.current = stage
         contract.stage_status.progress = progress
+
+    checkpoint_used = False
+    resume_value: str | None = None
+    if resume_from_stage is not None:
+        checkpoint_used = True
+        if isinstance(resume_from_stage, StageStatus):
+            resume_value = resume_from_stage.value
+        else:
+            resume_value = str(resume_from_stage)
+        contract.stage_status.retry_count += 1
 
     update_stage(StageStatus.INGEST, 0.05)
 
@@ -72,7 +90,7 @@ def run_local_job(
     update_stage(StageStatus.REVIEW, 0.95)
     update_stage(StageStatus.FINALIZE, 1.0)
 
-    return {
+    result: dict[str, object] = {
         "mode": "local",
         "source_lang": source_lang,
         "target_lang": target_lang,
@@ -100,7 +118,15 @@ def run_local_job(
         "domain_tags": domain_tags,
         "decision_trace": f"domain_weight_adjustment: +{domain_adjustment:.3f} tags={','.join(domain_tags) if domain_tags else 'none'}",
         "domain_hits": domain_hits,
+        "checkpoint_used": checkpoint_used,
+        "resume_from_stage": resume_value,
+        "minimum_log_level": resolve_minimum_log_level(),
     }
+
+    if audit_path is not None:
+        export_audit_payload(result, audit_path)
+
+    return result
 
 
 def run_pretrain_job(
