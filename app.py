@@ -5,9 +5,6 @@ try:
 except ModuleNotFoundError:  # pragma: no cover
     st = None
 
-from consensus_translation.contracts import TranslationJobContract
-
-
 PAGE_FIELD_MAP: dict[str, list[str]] = {
     "config": [
         "job_id",
@@ -67,17 +64,13 @@ def main() -> None:
     if st is None:  # pragma: no cover
         raise RuntimeError("streamlit is required to run the UI")
 
-    st.set_page_config(page_title="Cn-Jp Translation UI Contract", layout="wide")
-    st.title("Cn-Jp Translation UI Contract")
+    st.set_page_config(page_title="Consensus Translation V1", layout="wide")
+    st.title("Consensus Translation V1")
 
-    selected_page = st.sidebar.selectbox("Select page", options=list(PAGE_FIELD_MAP.keys()))
+    page = st.sidebar.selectbox("Page", list(PAGE_FIELD_MAP.keys()))
 
-    st.subheader(f"Page: {selected_page}")
-    st.json(PAGE_FIELD_MAP[selected_page])
-
-    contract_fields = list(TranslationJobContract.model_fields.keys())
-    st.subheader("contract_fields")
-    st.json(contract_fields)
+    st.subheader(page)
+    st.json({"contract_fields": PAGE_FIELD_MAP[page]})
 
 
 if __name__ == "__main__":
