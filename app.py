@@ -245,6 +245,26 @@ def resolve_input_text(
     return manual_text or "", meta
 
 
+def build_result_panel(payload: dict[str, object] | None) -> dict[str, object]:
+    data = payload or {}
+    mode = data.get("mode")
+    local_payload = data
+    if mode == "pretrain":
+        base_result = data.get("base_result")
+        if isinstance(base_result, dict):
+            local_payload = base_result
+
+    return {
+        "mode": mode,
+        "local_final_text": local_payload.get("final_text"),
+        "local_final_score": local_payload.get("final_score"),
+        "local_needs_review": local_payload.get("needs_review"),
+        "local_decision_reason": local_payload.get("decision_reason"),
+        "pretrain_calibration_summary": data.get("calibration_summary"),
+        "pretrain_improvement_rate": data.get("improvement_rate"),
+    }
+
+
 def main() -> None:
     if st is None:  # pragma: no cover
         raise RuntimeError("streamlit is required to run the UI")
@@ -260,20 +280,48 @@ def main() -> None:
     target_lang = st.sidebar.text_input("目标语言", value="ja")
     topic = st.sidebar.text_input("主题", value="general")
 
+    uploaded_file = st.sidebar.file_uploader(
+        "上传文本文件（txt/md/docx）",
+        type=["txt", "md", "docx"],
+    )
+    uploaded_text, upload_meta = extract_uploaded_text(uploaded_file)
+    if uploaded_file is None:
+        st.sidebar.info("未上传文件，使用手动输入内容。")
+    elif upload_meta.get("ok"):
+        if uploaded_text.strip():
+            st.sidebar.success("文件加载成功，运行时优先使用上传文本。")
+        else:
+            st.sidebar.warning("文件已加载但内容为空，运行时将回退到手动输入。")
+    else:
+        reason = str(upload_meta.get("reason") or REASON_UNSUPPORTED_TYPE)
+        st.sidebar.error(f"文件加载失败：{reason}")
+
     local_text = st.sidebar.text_area("本地文本", value="你好")
+    effective_local_text, effective_local_meta = resolve_input_text(
+        local_text,
+        uploaded_text,
+        upload_meta,
+    )
+    st.sidebar.caption(f"本地任务输入来源：{effective_local_meta.get('source', 'manual')}")
     if st.sidebar.button("运行本地任务"):
         st.session_state["latest_payload"] = run_local_job(
-            text=local_text,
+            text=effective_local_text,
             source_lang=source_lang,
             target_lang=target_lang,
             topic=topic,
         )
 
     train_text = st.sidebar.text_area("预训练文本", value="车站")
+    effective_train_text, effective_train_meta = resolve_input_text(
+        train_text,
+        uploaded_text,
+        upload_meta,
+    )
+    st.sidebar.caption(f"预训练输入来源：{effective_train_meta.get('source', 'manual')}")
     validation_text = st.sidebar.text_area("验证文本", value="列车")
     if st.sidebar.button("运行预训练任务"):
         st.session_state["latest_payload"] = run_pretrain_job(
-            train_text=train_text,
+            train_text=effective_train_text,
             validation_text=validation_text,
             source_lang=source_lang,
             target_lang=target_lang,
@@ -289,6 +337,9 @@ def main() -> None:
 
     st.subheader(PAGE_LABEL_MAP[page])
     st.json(page_data)
+
+    st.subheader("翻译结果")
+    st.json(build_result_panel(st.session_state.get("latest_payload")))
 
 
 if __name__ == "__main__":

@@ -13,6 +13,7 @@ if str(SRC) not in sys.path:
 from app import (
     PAGE_FIELD_MAP,
     PAGE_LABEL_MAP,
+    build_result_panel,
     extract_uploaded_text,
     extract_page_data,
     get_page_select_keys,
@@ -300,3 +301,47 @@ def test_resolve_input_text_falls_back_to_manual_when_upload_empty_or_not_ok():
     assert meta_empty["source"] == "manual"
     assert text_bad == "手动输入"
     assert meta_bad["source"] == "manual"
+
+
+def test_build_result_panel_extracts_local_payload_fields():
+    payload = {
+        "mode": "local",
+        "final_text": "こんにちは",
+        "final_score": 0.91,
+        "needs_review": False,
+        "decision_reason": "left-score-greater-or-equal",
+    }
+
+    panel = build_result_panel(payload)
+
+    assert panel["mode"] == "local"
+    assert panel["local_final_text"] == "こんにちは"
+    assert panel["local_final_score"] == 0.91
+    assert panel["local_needs_review"] is False
+    assert panel["local_decision_reason"] == "left-score-greater-or-equal"
+    assert panel["pretrain_calibration_summary"] is None
+    assert panel["pretrain_improvement_rate"] is None
+
+
+def test_build_result_panel_extracts_pretrain_and_base_local_fields():
+    payload = {
+        "mode": "pretrain",
+        "calibration_summary": "pretrain-complete",
+        "improvement_rate": 0.12,
+        "base_result": {
+            "final_text": "最終訳",
+            "final_score": 0.84,
+            "needs_review": True,
+            "decision_reason": "right-score-greater",
+        },
+    }
+
+    panel = build_result_panel(payload)
+
+    assert panel["mode"] == "pretrain"
+    assert panel["local_final_text"] == "最終訳"
+    assert panel["local_final_score"] == 0.84
+    assert panel["local_needs_review"] is True
+    assert panel["local_decision_reason"] == "right-score-greater"
+    assert panel["pretrain_calibration_summary"] == "pretrain-complete"
+    assert panel["pretrain_improvement_rate"] == 0.12
