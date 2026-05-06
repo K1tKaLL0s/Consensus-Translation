@@ -96,7 +96,7 @@
 
 ### Task 7 规格复核验证记录
 
-- `pytest -q`：`147 passed in 6.17s`，状态：通过。
+- `pytest -q`：`175 passed in 9.3s`，状态：通过。
 - `./scripts/build_exe.ps1 -Clean`：PyInstaller 输出 `Build complete!`，并生成 `dist/CnJpTranslateDesktop.exe`，状态：通过。
 - `./scripts/smoke_test_exe.ps1`：输出 `Smoke test passed`，状态：通过。
 
@@ -104,3 +104,30 @@
 
 - 本次为 Task 7 规格复核新增文档断言测试 `test_worklog_contains_task7_spec_review_verification_record`。
 - 在补充验证记录内容前，断言预期失败（红）；补充 `docs/worklog_zh.md` 后重新执行转为通过（绿），完成 fail-then-fix 验证闭环。
+
+## 九、Task 7 网络状态可见性与启动提示补充（本次新增）
+
+- 文档补充网络状态接口：统一标注后端端点 `/system/network`，供桌面端与网页端共享。
+- PyQt 与 Streamlit 均补充网络状态可视化说明，并明确支持“手动刷新”操作。
+- 启动模式一致性补充：`web/desktop/all` 共享后端启动约定，`all` 为组合模式。
+- 多提供商候选与 provider 分解高亮同步入册：
+  - `DeepSeek`：`TEx + Gen-A`
+  - `Gemini`：`Etym + Gen-B`
+  - `watsonx.ai`：`Gen-C + Arb`
+  - 兼容入口：`GPT / 千问 / Kimi`
+- `run.ps1` 启动输出补充网络提示：
+  - API 输出网络状态接口提示：`http://127.0.0.1:8000/system/network`
+  - Streamlit/PyQt 输出“支持手动刷新网络状态”提示。
+
+### Task 7 文档网络状态断言（红-绿）
+
+- 新增断言测试：`test_docs_cover_network_status_visibility_and_manual_refresh_mentions`。
+- 红：先运行该测试，因文档未包含 `/system/network` 与“手动刷新”而失败。
+- 绿：补充 `docs/worklog_zh.md` 与 `docs/user_manual_zh.md` 后，测试转为通过。
+
+### Task 7 启动语义对齐修复（本次补充）
+
+- 对齐 `run.ps1` 与文档语义：`desktop` 模式改为 **API + PyQt**（不启动 Streamlit）。
+- 保持 `web` 语义不变：`API + Streamlit`。
+- 保持 `all` 语义不变：同时覆盖 Web 与 Desktop（`API + Streamlit + PyQt`）。
+- 明确网络状态可用性：`/system/network` 在 `web/desktop/all` 三种模式均由 API 提供，PyQt 与 Streamlit 均可读取并支持手动刷新。

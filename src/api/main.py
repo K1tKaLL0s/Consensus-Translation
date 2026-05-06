@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from src.services.file_task_service import FileTaskService
 from src.services.glossary_service import validate_export_format
 from src.services.llm_config_service import default_llm_config_service
+from src.services.network_status_service import NetworkStatusService
 from src.services.training_service import chunk_training_text
 from src.services.translation_service import validate_source_declaration, validate_translation_input
 from src.services.workflow_service import WorkflowService
@@ -98,6 +99,11 @@ def clear_llm_config() -> dict[str, object]:
     service = default_llm_config_service()
     status = service.clear()
     return {"status": "ok", **status}
+
+
+@app.get("/system/network")
+def get_system_network() -> dict[str, object]:
+    return NetworkStatusService().probe()
 
 
 @app.post("/tasks/file")

@@ -1,5 +1,6 @@
 import os
 
+from src.core.providers import PROVIDER_ADAPTERS
 from src.services.llm_config_service import default_llm_config_service
 
 
@@ -37,6 +38,9 @@ class LLMRouter:
         return normalized
 
     def _has_key(self, provider: str) -> bool:
+        return bool(self._get_api_key(provider))
+
+    def _get_api_key(self, provider: str) -> str | None:
         resolved = self.resolve_provider(provider)
         env_name = self._PROVIDER_ENV_MAP[resolved]
 
@@ -46,16 +50,34 @@ class LLMRouter:
             status = None
 
         if status and status.get("provider") == resolved and status.get("api_key"):
-            return True
-        return bool(os.getenv(env_name))
+            return str(status.get("api_key"))
+
+        env_value = os.getenv(env_name)
+        if env_value:
+            return env_value
+        return None
+
+    def _dispatch_provider(self, provider: str, prompt: str, api_key: str) -> str:
+        adapter = PROVIDER_ADAPTERS.get(provider)
+        if adapter is None:
+            raise NotImplementedError(f"No provider adapter registered for: {provider}")
+        return adapter.generate(prompt=prompt, api_key=api_key)
 
     def generate(self, provider: str, prompt: str) -> str:
         resolved = self.resolve_provider(provider)
-        if not self._has_key(resolved):
+        api_key = self._get_api_key(resolved)
+
+        if not api_key:
             if not self.allow_mock_fallback:
                 env_name = self._PROVIDER_ENV_MAP[resolved]
                 raise ValueError(
                     f"{env_name} is required when mock fallback is disabled"
                 )
             return f"[MOCK:{resolved}] {prompt}"
-        return f"[REAL:{resolved}] {prompt}"
+
+        try:
+            return self._dispatch_provider(resolved, prompt, api_key)
+        except Exception:
+            if self.allow_mock_fallback:
+                return f"[MOCK:{resolved}] {prompt}"
+            raise

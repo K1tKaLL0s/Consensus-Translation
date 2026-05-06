@@ -93,7 +93,7 @@ def test_worklog_contains_task7_spec_review_verification_record() -> None:
     worklog = _read_text("docs/worklog_zh.md")
 
     assert "Task 7 规格复核验证记录" in worklog
-    assert "pytest -q" in worklog and "147 passed" in worklog and "通过" in worklog
+    assert "pytest -q" in worklog and "175 passed" in worklog and "通过" in worklog
     assert "./scripts/build_exe.ps1 -Clean" in worklog and "Build complete!" in worklog and "通过" in worklog
     assert "./scripts/smoke_test_exe.ps1" in worklog and "Smoke test passed" in worklog and "通过" in worklog
 
@@ -113,3 +113,21 @@ def test_docs_run_ps1_examples_use_consistent_windows_style_without_malformed_pr
     assert ".\\run.ps1 -Init" in readme
     assert ".\\run.ps1 -Init" in worklog
     assert ".\\run.ps1 -Init" in user_manual
+
+
+def test_docs_cover_network_status_visibility_and_manual_refresh_mentions() -> None:
+    worklog = _read_text("docs/worklog_zh.md")
+    user_manual = _read_text("docs/user_manual_zh.md")
+
+    assert "/system/network" in worklog
+    assert "手动刷新" in worklog
+    assert "/system/network" in user_manual
+    assert "手动刷新" in user_manual
+
+
+def test_user_manual_documents_mode_semantics_for_web_desktop_all() -> None:
+    user_manual = _read_text("docs/user_manual_zh.md")
+
+    assert "web`：启动 API" in user_manual
+    assert "desktop`：启动 API（不启动 Streamlit）+ PyQt" in user_manual
+    assert "all`：启动 API + Streamlit + PyQt" in user_manual

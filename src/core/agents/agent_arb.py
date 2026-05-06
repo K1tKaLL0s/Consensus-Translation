@@ -34,10 +34,21 @@ def select_consensus(
     best_final = float(best["final"])
 
     if best_final >= threshold:
+        attempted: list[str] = []
+        for candidate in candidates:
+            provider = str(candidate.get("provider", "")).strip()
+            if provider and provider not in attempted:
+                attempted.append(provider)
+
+        winners_provider = str(best.get("provider", "")).strip()
         return {
             "status": "auto_approved",
             "winner": str(best["text"]),
             "final": best_final,
+            "provider_breakdown": {
+                "attempted": attempted,
+                "winners_provider": winners_provider,
+            },
         }
 
     fallback_winner = romaji if romaji else kanji_raw

@@ -23,3 +23,16 @@ def test_run_ps1_contains_required_params_and_startup_commands() -> None:
     assert "uvicorn src.api.main:app" in content
     assert "streamlit" in content
     assert "src.ui.pyqt_app.main_window" in content
+
+
+def test_run_ps1_desktop_mode_starts_api_backend_without_streamlit() -> None:
+    script_path = ROOT / "run.ps1"
+
+    content = script_path.read_text(encoding="utf-8")
+
+    assert "function Start-BackendApi" in content
+    assert "if ($Mode -eq \"desktop\")" in content
+    assert "Start-BackendApi -ProjectRoot $projectRoot" in content
+
+    assert "$apiProc = Start-BackendApi -ProjectRoot $projectRoot" in content
+    assert "(desktop mode)" in content

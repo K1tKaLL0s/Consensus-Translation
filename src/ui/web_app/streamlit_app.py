@@ -42,6 +42,32 @@ def _handle_response(response: requests.Response) -> tuple[bool, dict[str, objec
     return True, payload
 
 
+def render_network_status_panel(api_base_url: str) -> None:
+    import streamlit as st
+
+    st.subheader("网络状态")
+
+    try:
+        response = requests.get(f"{api_base_url}/system/network", timeout=10)
+    except requests.RequestException as exc:
+        st.error(str(exc))
+        return
+
+    ok, payload = _handle_response(response)
+    if not ok:
+        st.error(str(payload.get("detail", "读取网络状态失败")))
+        return
+
+    st.write(f"online: {payload.get('online')}")
+    st.write(f"checked_at: {payload.get('checked_at')}")
+    st.write(f"probe_target: {payload.get('probe_target')}")
+    st.write(f"latency_ms: {payload.get('latency_ms')}")
+    st.write(f"message: {payload.get('message')}")
+
+    if st.button("刷新网络状态"):
+        st.rerun()
+
+
 def render_llm_config_panel(api_base_url: str) -> None:
     import streamlit as st
 
@@ -141,6 +167,8 @@ def render() -> None:
 
     api_base_url = st.text_input("API Base URL", value="http://127.0.0.1:8000")
 
+    render_network_status_panel(api_base_url)
+    st.divider()
     render_llm_config_panel(api_base_url)
     render_config_monitor_window(api_base_url)
     st.divider()

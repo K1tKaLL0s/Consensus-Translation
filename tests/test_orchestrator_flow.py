@@ -24,10 +24,29 @@ def test_run_builds_state_with_consensus(monkeypatch) -> None:
         assert provider == "gemini"
         return {"term": term, "analysis": "mock"}
 
-    def fake_generate_candidates(term: str) -> dict[str, str]:
+    def fake_generate_candidates(term: str) -> dict[str, dict[str, str | float | None]]:
         call_order.append("gen")
         assert term == "品質評価"
-        return {"gen_a": "A", "gen_b": "B", "gen_c": "C"}
+        return {
+            "deepseek": {
+                "provider": "deepseek",
+                "text": "A",
+                "latency_ms": 12.0,
+                "error": None,
+            },
+            "gemini": {
+                "provider": "gemini",
+                "text": "B",
+                "latency_ms": 8.0,
+                "error": None,
+            },
+            "watsonx": {
+                "provider": "watsonx",
+                "text": "C",
+                "latency_ms": 15.0,
+                "error": None,
+            },
+        }
 
     def fake_compute_final_score(
         mqm_score: float,
@@ -51,6 +70,11 @@ def test_run_builds_state_with_consensus(monkeypatch) -> None:
         assert romaji == ""
         assert threshold == 0.9
         assert len(candidates) == 3
+        assert candidates[0]["provider"] == "deepseek"
+        assert candidates[1]["provider"] == "gemini"
+        assert candidates[2]["provider"] == "watsonx"
+        assert candidates[0]["latency_ms"] == 12.0
+        assert candidates[1]["error"] is None
         return {"status": "auto_approved", "winner": "B", "final": 0.91}
 
     monkeypatch.setattr(
@@ -89,7 +113,26 @@ def test_run_passthrough_source_declaration(monkeypatch) -> None:
     monkeypatch.setattr(
         orchestrator_module,
         "generate_candidates",
-        lambda term: {"gen_a": "A", "gen_b": "B", "gen_c": "C"},
+        lambda term: {
+            "deepseek": {
+                "provider": "deepseek",
+                "text": "A",
+                "latency_ms": 1.0,
+                "error": None,
+            },
+            "gemini": {
+                "provider": "gemini",
+                "text": "B",
+                "latency_ms": 2.0,
+                "error": None,
+            },
+            "watsonx": {
+                "provider": "watsonx",
+                "text": "C",
+                "latency_ms": 3.0,
+                "error": None,
+            },
+        },
     )
     monkeypatch.setattr(orchestrator_module, "compute_final_score", lambda *args, **kwargs: 0.5)
     monkeypatch.setattr(
@@ -121,10 +164,29 @@ def test_run_uses_unknown_term_when_extractor_returns_empty(monkeypatch) -> None
         etym_called = True
         return {"term": term, "analysis": "ok"}
 
-    def fake_generate_candidates(term: str) -> dict[str, str]:
+    def fake_generate_candidates(term: str) -> dict[str, dict[str, str | float | None]]:
         nonlocal gen_called
         gen_called = True
-        return {"gen_a": "A", "gen_b": "B", "gen_c": "C"}
+        return {
+            "deepseek": {
+                "provider": "deepseek",
+                "text": "A",
+                "latency_ms": 1.0,
+                "error": None,
+            },
+            "gemini": {
+                "provider": "gemini",
+                "text": "B",
+                "latency_ms": 2.0,
+                "error": None,
+            },
+            "watsonx": {
+                "provider": "watsonx",
+                "text": "C",
+                "latency_ms": 3.0,
+                "error": None,
+            },
+        }
 
     def fake_select_consensus(candidates, threshold, kanji_raw, romaji):
         nonlocal select_called

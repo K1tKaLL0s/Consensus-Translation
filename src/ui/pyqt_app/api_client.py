@@ -30,6 +30,11 @@ class ApiClient:
         response.raise_for_status()
         return response.json()
 
+    def get_network_status(self) -> dict[str, object]:
+        response = requests.get(self._url("/system/network"), timeout=self.timeout)
+        response.raise_for_status()
+        return response.json()
+
     def start_translate_workflow(self, file_path: str, source_declaration: str) -> dict[str, object]:
         upload_name = Path(file_path).name
         with open(file_path, "rb") as handle:

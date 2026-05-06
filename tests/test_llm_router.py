@@ -21,14 +21,14 @@ def test_generate_without_key_returns_mock_fallback(monkeypatch: pytest.MonkeyPa
     assert result == "[MOCK:gpt] hello"
 
 
-def test_generate_with_key_returns_real_branch(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_generate_with_key_returns_mock_when_adapter_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     router = LLMRouter()
     monkeypatch.setenv("OPENAI_API_KEY", "dummy-key")
     monkeypatch.delenv("MAATCS_ALLOW_MOCK_FALLBACK", raising=False)
 
     result = router.generate("gpt", "hello")
 
-    assert result == "[REAL:gpt] hello"
+    assert result == "[MOCK:gpt] hello"
 
 
 def test_generate_without_key_raises_when_mock_fallback_disallowed(

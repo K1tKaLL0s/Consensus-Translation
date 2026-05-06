@@ -48,7 +48,7 @@ def test_extract_candidate_terms_limit_japanese_term_length_range() -> None:
 def test_generate_candidates_returns_three_paths() -> None:
     result = generate_candidates("品質評価")
 
-    assert set(result.keys()) == {"gen_a", "gen_b", "gen_c"}
+    assert set(result.keys()) == {"deepseek", "gemini", "watsonx"}
 
 
 def test_generate_candidates_uses_router_mocked_three_providers(
@@ -61,9 +61,9 @@ def test_generate_candidates_uses_router_mocked_three_providers(
 
     result = generate_candidates("品質評価")
 
-    assert "[MOCK:deepseek]" in result["gen_a"]
-    assert "[MOCK:gemini]" in result["gen_b"]
-    assert "[MOCK:watsonx]" in result["gen_c"]
+    assert "[MOCK:deepseek]" in result["deepseek"]["text"]
+    assert "[MOCK:gemini]" in result["gemini"]["text"]
+    assert "[MOCK:watsonx]" in result["watsonx"]["text"]
 
 
 def test_generate_candidates_raises_value_error_for_blank_term() -> None:

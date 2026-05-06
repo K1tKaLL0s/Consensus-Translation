@@ -61,6 +61,16 @@ class MAATCSOrchestrator:
         for term in state["terms"]:
             generated = generate_candidates(term)
             for key, value in generated.items():
+                if isinstance(value, dict):
+                    provider = str(value.get("provider", key))
+                    text = str(value.get("text", ""))
+                    latency_ms = float(value.get("latency_ms", 0.0) or 0.0)
+                    error = value.get("error")
+                else:
+                    provider = str(key)
+                    text = str(value)
+                    latency_ms = 0.0
+                    error = None
                 final = compute_final_score(
                     mqm_score=0.9,
                     context_score=0.9,
@@ -70,7 +80,10 @@ class MAATCSOrchestrator:
                     {
                         "term": term,
                         "source": key,
-                        "text": value,
+                        "provider": provider,
+                        "text": text,
+                        "latency_ms": latency_ms,
+                        "error": error,
                         "final": final,
                     }
                 )

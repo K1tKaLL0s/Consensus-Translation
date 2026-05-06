@@ -80,17 +80,38 @@ function Start-WebApps {
         [string]$ProjectRoot
     )
 
-    $pythonCmd = Get-PythonCommand -ProjectRoot $ProjectRoot
-
-    $apiCommand = "uvicorn src.api.main:app"
-    Write-Host "[run] Starting API on http://127.0.0.1:8000"
-    Write-Host ("[run] Command: {0}" -f $apiCommand)
-    $apiProc = Start-Process -FilePath $pythonCmd -ArgumentList "-m", "uvicorn", "src.api.main:app", "--host", "127.0.0.1", "--port", "8000", "--reload" -WorkingDirectory $ProjectRoot -PassThru
-
-    Write-Host "[run] Starting Streamlit on http://127.0.0.1:8501"
-    $webProc = Start-Process -FilePath $pythonCmd -ArgumentList "-m", "streamlit", "run", "src/ui/web_app/streamlit_app.py" -WorkingDirectory $ProjectRoot -PassThru
+    $apiProc = Start-BackendApi -ProjectRoot $ProjectRoot
+    $webProc = Start-Streamlit -ProjectRoot $ProjectRoot
 
     Write-Host ("[run] API PID={0}, Streamlit PID={1}" -f $apiProc.Id, $webProc.Id)
+}
+
+function Start-BackendApi {
+    param(
+        [string]$ProjectRoot
+    )
+
+    $pythonCmd = Get-PythonCommand -ProjectRoot $ProjectRoot
+    $apiCommand = "uvicorn src.api.main:app"
+
+    Write-Host "[run] Starting API on http://127.0.0.1:8000"
+    Write-Host "[run] Network status endpoint: http://127.0.0.1:8000/system/network"
+    Write-Host ("[run] Command: {0}" -f $apiCommand)
+
+    return Start-Process -FilePath $pythonCmd -ArgumentList "-m", "uvicorn", "src.api.main:app", "--host", "127.0.0.1", "--port", "8000", "--reload" -WorkingDirectory $ProjectRoot -PassThru
+}
+
+function Start-Streamlit {
+    param(
+        [string]$ProjectRoot
+    )
+
+    $pythonCmd = Get-PythonCommand -ProjectRoot $ProjectRoot
+
+    Write-Host "[run] Starting Streamlit on http://127.0.0.1:8501"
+    Write-Host "[run] Streamlit network panel supports manual refresh"
+
+    return Start-Process -FilePath $pythonCmd -ArgumentList "-m", "streamlit", "run", "src/ui/web_app/streamlit_app.py" -WorkingDirectory $ProjectRoot -PassThru
 }
 
 function Start-Desktop {
@@ -100,6 +121,7 @@ function Start-Desktop {
 
     $pythonCmd = Get-PythonCommand -ProjectRoot $ProjectRoot
     Write-Host "[run] Starting PyQt client..."
+    Write-Host "[run] PyQt network status supports manual refresh"
     Push-Location $ProjectRoot
     try {
         & $pythonCmd -c "from src.ui.pyqt_app.main_window import run; run()"
@@ -117,6 +139,11 @@ if ($Init) {
 
 if ($Mode -eq "web" -or $Mode -eq "all") {
     Start-WebApps -ProjectRoot $projectRoot
+}
+
+if ($Mode -eq "desktop") {
+    $apiProc = Start-BackendApi -ProjectRoot $projectRoot
+    Write-Host ("[run] API PID={0} (desktop mode)" -f $apiProc.Id)
 }
 
 if ($Mode -eq "desktop" -or $Mode -eq "all") {

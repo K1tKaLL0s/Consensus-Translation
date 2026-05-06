@@ -42,11 +42,16 @@ class MainWindow(QMainWindow):
         self.api_base_url_input = QLineEdit(self.state_store.api_base_url)
         self.apply_api_base_url_button = QPushButton("应用")
         self.apply_api_base_url_button.clicked.connect(self.apply_api_base_url)
+        self.network_status_label = QLabel("网络状态: 未知")
+        self.refresh_network_status_button = QPushButton("刷新")
+        self.refresh_network_status_button.clicked.connect(self.refresh_network_status)
 
         top_controls = QHBoxLayout()
         top_controls.addWidget(QLabel("API Base URL"))
         top_controls.addWidget(self.api_base_url_input)
         top_controls.addWidget(self.apply_api_base_url_button)
+        top_controls.addWidget(self.network_status_label)
+        top_controls.addWidget(self.refresh_network_status_button)
 
         self.tabs = self.build_interactive_tabs()
 
@@ -72,6 +77,8 @@ class MainWindow(QMainWindow):
             notice.show()
             self.offline_notice_box = notice
 
+        self.refresh_network_status()
+
     def build_interactive_tabs(self) -> QTabWidget:
         tabs = QTabWidget(self)
 
@@ -93,6 +100,15 @@ class MainWindow(QMainWindow):
             return
         self.state_store.api_base_url = updated_url
         self.api_client.base_url = updated_url
+
+    def refresh_network_status(self) -> dict[str, object]:
+        try:
+            payload = self.api_client.get_network_status()
+        except Exception:
+            payload = {"online": False, "message": offline_notice_text()}
+        message = str(payload.get("message") or "未知")
+        self.network_status_label.setText(f"网络状态: {message}")
+        return payload
 
 
 def run() -> None:

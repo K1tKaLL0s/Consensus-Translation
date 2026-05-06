@@ -41,9 +41,16 @@
 - `-Mode web|desktop|all`：
   - `web`：API + Streamlit
   - `desktop`：API + PyQt
-  - `all`：全部启动
+  - `all`：API + Streamlit + PyQt
 - `-SkipInstall`：初始化时跳过依赖安装。
 - `-SkipDB`：初始化时跳过数据库步骤。
+
+启动模式一致性说明：
+
+- `web`：启动 API（`127.0.0.1:8000`）+ Streamlit（`127.0.0.1:8501`）。
+- `desktop`：启动 API（不启动 Streamlit）+ PyQt，适合纯桌面联调。
+- `all`：启动 API + Streamlit + PyQt，用于同时验证网页端与桌面端。
+- API 统一提供网络状态接口：`/system/network`，在 `web`/`desktop`/`all` 三种模式下均可供前端读取。
 
 ## 4. MySQL 引导逻辑
 
@@ -104,6 +111,16 @@ Web 页面支持全局 `provider + model + api_key` 配置，并持久化到本�
 
 若未配置 key，系统允许 Mock 回退（用于本地开发与演示）。
 
+### 5.3 多提供商候选与 provider 分解说明
+
+- 多智能体生成阶段支持多 provider 候选并行，后续由仲裁环节选择最优候选。
+- provider 分解高亮：
+  - `DeepSeek`：`TEx + Gen-A`
+  - `Gemini`：`Etym + Gen-B`
+  - `watsonx.ai`：`Gen-C + Arb`
+  - 兼容入口：`GPT / 千问 / Kimi`
+- 当部分 provider 不可用时，系统仍可降级并维持可运行输出（含 Mock 回退路径）。
+
 ## 6. 业务使用流程
 
 ### 6.A PyQt 一期交互面板（新增）
@@ -116,6 +133,14 @@ Web 页面支持全局 `provider + model + api_key` 配置，并持久化到本�
 - 复制策略：仅在确认后解锁复制；开始或修订阶段复制按钮保持禁用。
 - 训练参考文本策略：优先使用上传参考文件；未上传参考文本时，按 `source_declaration` 回退读取 `references/{source_declaration}.txt`。
 - 网络不可用时显示离线提醒（“当前未联网，部分功能受限”），该提醒为非阻塞提示，不中断窗口交互。
+- PyQt 面板支持网络状态可视化与手动刷新：
+  - 读取后端 `/system/network` 并展示在线/离线状态。
+  - 用户可点击“刷新”按钮手动刷新网络状态。
+
+### 6.B Streamlit 网络状态面板（新增）
+
+- Web 端首页展示网络状态面板，数据来源为 `/system/network`。
+- 支持手动刷新，用于在网络波动后即时同步前端状态。
 
 ### 6.0 Web 文件任务（新增）
 
