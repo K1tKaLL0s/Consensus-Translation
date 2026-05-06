@@ -1,6 +1,6 @@
-import hashlib
 from enum import Enum
 from typing import Literal
+from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
@@ -40,9 +40,7 @@ class TranslationJobContract(BaseModel):
         target_lang: str,
         topic: str,
     ) -> "TranslationJobContract":
-        seed = f"{mode}|{source_lang}|{target_lang}|{topic}"
-        digest = hashlib.sha256(seed.encode("utf-8")).hexdigest()[:16]
-        job_id = f"job-{digest}"
+        job_id = f"job-{uuid4().hex[:16]}"
         return cls(
             job_id=job_id,
             mode=mode,

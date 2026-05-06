@@ -48,3 +48,20 @@ def test_contract_requires_version_match():
             target_lang="ja",
             topic="general",
         )
+
+
+def test_new_job_generates_unique_ids_for_same_inputs():
+    first = TranslationJobContract.new_job(
+        mode="standard",
+        source_lang="zh",
+        target_lang="ja",
+        topic="general",
+    )
+    second = TranslationJobContract.new_job(
+        mode="standard",
+        source_lang="zh",
+        target_lang="ja",
+        topic="general",
+    )
+
+    assert first.job_id != second.job_id
