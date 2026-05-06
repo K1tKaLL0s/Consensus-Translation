@@ -11,8 +11,8 @@ if str(SRC) not in sys.path:
 from consensus_translation.lexicon import LexiconRepo, RevisionPayload
 
 
-def test_revision_updates_themed_lexicon_entry():
-    repo = LexiconRepo()
+def test_revision_updates_themed_lexicon_entry(tmp_path):
+    repo = LexiconRepo(store_path=tmp_path / "lexicon.json")
     payload = RevisionPayload(
         topic="travel",
         source="车站",
@@ -27,8 +27,8 @@ def test_revision_updates_themed_lexicon_entry():
     assert event.user_prior_delta == 0.05
 
 
-def test_large_diff_marks_special_and_lowers_weight():
-    repo = LexiconRepo()
+def test_large_diff_marks_special_and_lowers_weight(tmp_path):
+    repo = LexiconRepo(store_path=tmp_path / "lexicon.json")
     payload = RevisionPayload(
         topic=None,
         source="你好",
@@ -57,3 +57,12 @@ def test_lexicon_persists_across_instances(tmp_path):
 
     second = LexiconRepo(store_path=store_file)
     assert second.find("travel", "车站") == "駅"
+
+
+def test_default_store_path_uses_local_app_data(monkeypatch, tmp_path):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+
+    repo = LexiconRepo()
+
+    assert str(repo._store_path).startswith(str(tmp_path))
+    assert repo._store_path.name == "lexicon.json"

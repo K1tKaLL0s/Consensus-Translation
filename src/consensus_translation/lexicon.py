@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import json
+import os
 from pathlib import Path
 
 
@@ -19,7 +20,11 @@ class RevisionEvent:
 
 class LexiconRepo:
     def __init__(self, store_path: Path | None = None) -> None:
-        default_path = Path(__file__).resolve().parents[2] / "data" / "lexicon.json"
+        local_app_data = os.getenv("LOCALAPPDATA")
+        if local_app_data:
+            default_path = Path(local_app_data) / "ConsensusTranslation" / "lexicon.json"
+        else:
+            default_path = Path(__file__).resolve().parents[2] / "data" / "lexicon.json"
         self._store_path = store_path or default_path
         self._store: dict[str, dict[str, str]] = self._load_store()
 
