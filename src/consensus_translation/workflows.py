@@ -33,15 +33,14 @@ def run_local_job(
     needs_review = winner_score < 0.55
 
     final_text = a_text if winner is left else b_text
+    winner_side = "left" if winner is left else "right"
 
     return {
         "mode": "local",
-        "text": text,
         "source_lang": source_lang,
         "target_lang": target_lang,
         "topic": topic,
-        "left_candidate": a_text,
-        "right_candidate": b_text,
+        "winner": winner_side,
         "final_text": final_text,
         "final_score": winner_score,
         "needs_review": needs_review,

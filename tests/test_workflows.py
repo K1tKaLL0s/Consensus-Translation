@@ -39,6 +39,17 @@ def test_local_job_marks_needs_review_when_scores_low():
     )
 
     assert result["mode"] == "local"
+    assert result["winner"] in {"left", "right"}
+    assert set(result.keys()) == {
+        "mode",
+        "source_lang",
+        "target_lang",
+        "topic",
+        "winner",
+        "final_text",
+        "final_score",
+        "needs_review",
+    }
     assert result["final_text"] == "A::你好"
     assert result["final_score"] == pytest.approx(0.4525)
     assert result["needs_review"] is True
