@@ -237,6 +237,54 @@ def test_extract_uploaded_text_marks_unsupported_type_as_non_ok():
     assert meta["reason"] == "unsupported_type"
 
 
+def test_extract_uploaded_text_returns_decode_error_for_invalid_utf8_text():
+    upload = DummyUpload("broken.txt", "text/plain", b"\xff\xfe\xfa")
+
+    text, meta = extract_uploaded_text(upload)
+
+    assert text == ""
+    assert meta["ok"] is False
+    assert meta["reason"] == "decode_error"
+
+
+def test_extract_uploaded_text_returns_docx_parse_error_for_malformed_docx_bytes():
+    upload = DummyUpload(
+        "broken.docx",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        b"not-a-zip-docx",
+    )
+
+    text, meta = extract_uploaded_text(upload)
+
+    assert text == ""
+    assert meta["ok"] is False
+    assert meta["reason"] == "docx_parse_error"
+
+
+def test_extract_uploaded_text_returns_docx_dependency_missing_when_docx_unavailable(monkeypatch):
+    import builtins
+
+    original_import = builtins.__import__
+
+    def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "docx":
+            raise ModuleNotFoundError("No module named 'docx'")
+        return original_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    upload = DummyUpload(
+        "sample.docx",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        b"docx-bytes",
+    )
+
+    text, meta = extract_uploaded_text(upload)
+
+    assert text == ""
+    assert meta["ok"] is False
+    assert meta["reason"] == "docx_dependency_missing"
+
+
 def test_resolve_input_text_prefers_uploaded_non_empty_text():
     chosen_text, chosen_meta = resolve_input_text("手动输入", "上传文本", {"ok": True})
 

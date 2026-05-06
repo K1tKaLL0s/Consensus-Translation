@@ -2,6 +2,7 @@ from __future__ import annotations
 from io import BytesIO
 from pathlib import Path
 import sys
+from typing import Literal, TypedDict
 
 
 ROOT = Path(__file__).resolve().parent
@@ -82,6 +83,51 @@ PAGE_LABEL_MAP: dict[str, str] = {
 
 _MISSING = object()
 
+EXT_TXT = ".txt"
+EXT_MD = ".md"
+EXT_DOCX = ".docx"
+
+SUPPORTED_TEXT_EXTENSIONS = {EXT_TXT, EXT_MD}
+SUPPORTED_EXTENSIONS = SUPPORTED_TEXT_EXTENSIONS | {EXT_DOCX}
+
+MIME_TEXT_PLAIN = "text/plain"
+MIME_TEXT_MARKDOWN = "text/markdown"
+MIME_TEXT_X_MARKDOWN = "text/x-markdown"
+MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+ALLOWED_MIME_BY_EXT: dict[str, set[str]] = {
+    EXT_TXT: {MIME_TEXT_PLAIN},
+    EXT_MD: {MIME_TEXT_MARKDOWN, MIME_TEXT_X_MARKDOWN, MIME_TEXT_PLAIN},
+    EXT_DOCX: {MIME_DOCX},
+}
+
+REASON_NO_FILE = "no_file"
+REASON_INVALID_FILE_OBJ = "invalid_file_obj"
+REASON_INVALID_FILE_BYTES = "invalid_file_bytes"
+REASON_UNSUPPORTED_TYPE = "unsupported_type"
+REASON_DECODE_ERROR = "decode_error"
+REASON_DOCX_PARSE_ERROR = "docx_parse_error"
+REASON_DOCX_DEP_MISSING = "docx_dependency_missing"
+
+
+UploadParseReason = Literal[
+    "no_file",
+    "invalid_file_obj",
+    "invalid_file_bytes",
+    "unsupported_type",
+    "decode_error",
+    "docx_parse_error",
+    "docx_dependency_missing",
+]
+
+
+class UploadParseMetadata(TypedDict):
+    ok: bool
+    file_name: str | None
+    file_type: str | None
+    file_ext: str | None
+    reason: UploadParseReason | None
+
 
 def _resolve_dot_path_with_found(payload: dict[str, object], path: str) -> tuple[bool, object]:
     current: object = payload
@@ -118,13 +164,13 @@ def get_page_select_keys() -> list[str]:
     return list(PAGE_FIELD_MAP.keys())
 
 
-def extract_uploaded_text(uploaded_file: object | None) -> tuple[str, dict[str, object]]:
-    metadata: dict[str, object] = {
+def extract_uploaded_text(uploaded_file: object | None) -> tuple[str, UploadParseMetadata]:
+    metadata: UploadParseMetadata = {
         "ok": False,
         "file_name": None,
         "file_type": None,
         "file_ext": None,
-        "reason": "no_file",
+        "reason": REASON_NO_FILE,
     }
     if uploaded_file is None:
         return "", metadata
@@ -136,29 +182,50 @@ def extract_uploaded_text(uploaded_file: object | None) -> tuple[str, dict[str, 
 
     getvalue = getattr(uploaded_file, "getvalue", None)
     if not callable(getvalue):
-        metadata["reason"] = "invalid_file_obj"
+        metadata["reason"] = REASON_INVALID_FILE_OBJ
         return "", metadata
 
     raw = getvalue()
     if not isinstance(raw, (bytes, bytearray)):
-        metadata["reason"] = "invalid_file_bytes"
+        metadata["reason"] = REASON_INVALID_FILE_BYTES
         return "", metadata
     raw_bytes = bytes(raw)
 
-    if file_ext in {".txt", ".md"}:
-        text = raw_bytes.decode("utf-8")
+    if file_ext not in SUPPORTED_EXTENSIONS:
+        metadata["reason"] = REASON_UNSUPPORTED_TYPE
+        return "", metadata
+
+    allowed_mimes = ALLOWED_MIME_BY_EXT.get(file_ext, set())
+    if file_type and file_type not in allowed_mimes:
+        metadata["reason"] = REASON_UNSUPPORTED_TYPE
+        return "", metadata
+
+    if file_ext in SUPPORTED_TEXT_EXTENSIONS:
+        try:
+            text = raw_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            metadata["reason"] = REASON_DECODE_ERROR
+            return "", metadata
         metadata.update({"ok": True, "reason": None})
         return text, metadata
 
-    if file_ext == ".docx":
-        from docx import Document
+    if file_ext == EXT_DOCX:
+        try:
+            from docx import Document
+        except ModuleNotFoundError:
+            metadata["reason"] = REASON_DOCX_DEP_MISSING
+            return "", metadata
 
-        doc = Document(BytesIO(raw_bytes))
+        try:
+            doc = Document(BytesIO(raw_bytes))
+        except Exception:
+            metadata["reason"] = REASON_DOCX_PARSE_ERROR
+            return "", metadata
         text = "\n".join(p.text for p in doc.paragraphs)
         metadata.update({"ok": True, "reason": None})
         return text, metadata
 
-    metadata["reason"] = "unsupported_type"
+    metadata["reason"] = REASON_UNSUPPORTED_TYPE
     return "", metadata
 
 
