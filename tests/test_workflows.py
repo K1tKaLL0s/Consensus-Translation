@@ -11,7 +11,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 
-from consensus_translation.contracts import StageStatus
+from consensus_translation.contracts import StageStatus, TranslationJobContract
 import consensus_translation.health as health_module
 from consensus_translation.workflows import run_local_job, run_pretrain_job
 
@@ -309,3 +309,69 @@ def test_local_job_runtime_log_level_emits_debug_at_debug(monkeypatch, caplog):
         record.getMessage() for record in caplog.records if record.levelname == "DEBUG"
     ]
     assert any("engine outputs captured" in message for message in debug_messages)
+
+
+def test_local_mode_go_live_payload_has_required_fields(monkeypatch):
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineA.translate",
+        lambda _self, _text, _source, _target: ("hello", 0.61),
+    )
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineB.translate",
+        lambda _self, _text, _source, _target: ("hi", 0.59),
+    )
+
+    result = run_local_job(
+        text="你好",
+        source_lang="zh",
+        target_lang="ja",
+        topic="general",
+    )
+
+    required = {
+        "final_text",
+        "final_score",
+        "needs_review",
+        "decision_reason",
+        "contract",
+        "audit_exported",
+    }
+    assert required.issubset(set(result.keys()))
+    assert result["audit_exported"] is False
+
+
+def test_local_mode_error_path_sets_structured_contract_error(monkeypatch):
+    captured_contract = TranslationJobContract(
+        job_id="job-structured-error",
+        mode="local",
+        source_lang="zh",
+        target_lang="ja",
+        topic="general",
+    )
+
+    def fake_new_job(_cls, mode, source_lang, target_lang, topic):
+        assert mode == "local"
+        assert source_lang == "zh"
+        assert target_lang == "ja"
+        assert topic == "general"
+        return captured_contract
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("engine exploded")
+
+    monkeypatch.setattr(
+        "consensus_translation.workflows.TranslationJobContract.new_job",
+        classmethod(fake_new_job),
+    )
+    monkeypatch.setattr("consensus_translation.workflows.LocalEngineA.translate", boom)
+
+    with pytest.raises(RuntimeError, match="engine exploded"):
+        run_local_job(
+            text="你好",
+            source_lang="zh",
+            target_lang="ja",
+            topic="general",
+        )
+
+    assert captured_contract.stage_status.error_code == "ENGINE_FAILURE"
+    assert captured_contract.stage_status.error_message == "engine exploded"

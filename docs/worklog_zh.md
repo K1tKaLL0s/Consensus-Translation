@@ -72,10 +72,11 @@
 
 执行命令与结果如下：
 
-1. 全量测试 + 覆盖率
+1. 全量测试 + 覆盖率（Gate-L 验证）
    - 命令：`pytest -v --cov=src/consensus_translation --cov-report=term-missing`
-   - 结果：`25 passed`
-   - 总覆盖率：`89%`
+   - 结果：`46 passed`
+   - 总覆盖率：`92%`
+   - Gate-L 关键断言：本地 payload 必含 `final_text/final_score/needs_review/decision_reason/contract/audit_exported`，并验证错误路径写入结构化 `error_code/error_message`
 
 2. 启动冒烟
    - 命令：`powershell -ExecutionPolicy Bypass -File .\run_streamlit.ps1`
@@ -85,7 +86,13 @@
    - Marian：`Hello, world.`
    - NLLB：`Hello, world.`
 
-## 四、待完成项目（下一阶段）
+## 四、阶段推进（2026-05-07）
+
+- 第二阶段目标重排完成，AI 辅助模式保持第三阶段范围，不在本阶段推进实现。
+- UI-Backend Contract Gate 通过：UI 页面字段映射与后端 payload/contract 回退链路对齐（含 `stage_status.*` 监控字段）。
+- Local Go-Live Gate（Gate-L）通过：本地模式必需字段与结构化错误处理均由自动化测试覆盖并通过。
+
+## 五、待完成项目（下一阶段）
 
 1. 预训练指标真实化
    - 当前 `validation_metrics` 为占位逻辑，需替换为基于验证集的真实计算
@@ -104,7 +111,7 @@
    - 增加日志分级与任务审计导出
    - 增加错误恢复与断点续跑能力
 
-## 五、运行注意事项
+## 六、运行注意事项
 
 - NLLB 首次运行会下载模型，首次耗时较长属正常
 - Windows 下 HuggingFace 缓存可能提示 symlink 警告，不影响基本运行

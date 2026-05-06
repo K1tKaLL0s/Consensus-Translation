@@ -143,10 +143,12 @@ def run_local_job(
         "checkpoint_used": checkpoint_used,
         "resume_from_stage": resume_value,
         "minimum_log_level": effective_log_level,
+        "audit_exported": False,
     }
 
     if audit_path is not None:
         export_audit_payload(result, audit_path)
+        result["audit_exported"] = True
 
     return result
 
