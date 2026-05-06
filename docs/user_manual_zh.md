@@ -54,6 +54,14 @@ UI 仅渲染契约与工作流输出字段，确保前后端一致。
 - MDWC 决策理由
 - 契约快照
 
+本版本新增运行字段：
+
+- `domain_tags` / `domain_hits`：神话/历史/科学要素识别结果
+- `decision_trace`：分值联动追踪
+- `minimum_log_level`：当前有效日志级别
+- `audit_exported`：是否导出审计
+- `checkpoint_used` / `resume_from_stage`：恢复执行标记
+
 ### 3.2 预训练模式（pretrain）
 
 在本地模式基础上进行词库校准和输出增强：
@@ -62,6 +70,15 @@ UI 仅渲染契约与工作流输出字段，确保前后端一致。
 - 验证指标字段
 - 提升率字段
 - 冲突与未分类项字段
+
+本版本的 `validation_metrics` 包含：
+
+- `term_consistency`
+- `length_ratio`
+- `edit_similarity`
+- `overall`
+
+并输出 `evaluation_version` 以标识评估逻辑版本。
 
 ## 4. 安装与启动
 
@@ -120,17 +137,29 @@ powershell -ExecutionPolicy Bypass -File .\run_streamlit.ps1
 ## 6. 文件与数据说明
 
 - 词库默认路径：`%LOCALAPPDATA%\ConsensusTranslation\lexicon.json`
+- 词库结构（V2）：`terms` / `phrases` / `style_rules`
 - 模型缓存路径：HuggingFace 默认缓存目录（首次运行会自动下载）
 
-## 7. 使用须知
+## 7. 阶段边界说明
+
+当前版本完成到第二阶段，本地模式可投入使用。
+
+第三阶段目标（当前未实现）：
+
+- AI 辅助模式（最多 3 模型）
+- 多模型交火/投票/多轮迭代
+
+当前 UI 不提供第三阶段 AI 入口，属预期行为。
+
+## 8. 使用须知
 
 1. 首次运行模型下载较慢，属于正常现象。
 2. 若网络受限，模型下载会失败，请先确保可访问 HuggingFace。
 3. 引擎输出质量受模型覆盖方向影响，部分语对会走中转逻辑。
 4. 当前 V1 重点是“可运行 + 可观察 + 可迭代”，非最终质量版本。
-5. 预训练指标字段已可用，但仍建议后续接入真实验证集评分模块。
+5. 预训练指标已从占位逻辑替换为可复现计算，但仍建议后续升级更强验证集评估体系。
 
-## 8. 常见问题
+## 9. 常见问题
 
 ### Q1: 终端有 `sacremoses` 提示怎么办？
 
