@@ -48,6 +48,24 @@ def test_docs_package_contains_required_topic_statements() -> None:
     assert "来源声明" in presentation_script
 
 
+def test_pyqt_phase1_docs_cover_interactive_workflow_and_offline_notice() -> None:
+    worklog = _read_text("docs/worklog_zh.md")
+    user_manual = _read_text("docs/user_manual_zh.md")
+
+    assert "PyQt 交互式面板" in worklog
+    assert "修订/确认" in worklog
+    assert "复制按钮解锁" in worklog
+    assert "未上传参考文本时，可回退读取" in worklog
+    assert "离线提醒为非阻塞" in worklog
+
+    assert "交互面板" in user_manual
+    assert "翻译与训练分离" in user_manual
+    assert "修订" in user_manual and "确认" in user_manual
+    assert "仅在确认后解锁复制" in user_manual
+    assert "未上传参考文本时" in user_manual and "source_declaration" in user_manual
+    assert "离线提醒" in user_manual and "非阻塞" in user_manual
+
+
 def test_browser_extension_scaffold_targets_translate_task_endpoint() -> None:
     manifest = _read_text("extensions/browser/manifest.json")
     popup_html = _read_text("extensions/browser/popup.html")
@@ -69,3 +87,29 @@ def test_popup_uses_active_tab_url_to_prefill_source_when_empty() -> None:
     assert "new URL" in popup_js
     assert "hostname" in popup_js
     assert "if (!sourceInput.value.trim())" in popup_js
+
+
+def test_worklog_contains_task7_spec_review_verification_record() -> None:
+    worklog = _read_text("docs/worklog_zh.md")
+
+    assert "Task 7 规格复核验证记录" in worklog
+    assert "pytest -q" in worklog and "147 passed" in worklog and "通过" in worklog
+    assert "./scripts/build_exe.ps1 -Clean" in worklog and "Build complete!" in worklog and "通过" in worklog
+    assert "./scripts/smoke_test_exe.ps1" in worklog and "Smoke test passed" in worklog and "通过" in worklog
+
+
+def test_docs_run_ps1_examples_use_consistent_windows_style_without_malformed_prefix() -> None:
+    readme = _read_text("README.md")
+    worklog = _read_text("docs/worklog_zh.md")
+    user_manual = _read_text("docs/user_manual_zh.md")
+
+    docs = [readme, worklog, user_manual]
+    malformed_patterns = ["\\.\\run.ps1", "\\./run.ps1"]
+
+    for content in docs:
+        for malformed in malformed_patterns:
+            assert malformed not in content
+
+    assert ".\\run.ps1 -Init" in readme
+    assert ".\\run.ps1 -Init" in worklog
+    assert ".\\run.ps1 -Init" in user_manual
