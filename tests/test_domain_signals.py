@@ -14,7 +14,7 @@ from consensus_translation.domain_signals import extract_domain_signals
 def test_extract_domain_signals_identifies_myth_history_and_science_with_hits():
     text = "The dragon myth from the dynasty was written by an astronomer."
 
-    result = extract_domain_signals(text=text, topic="legend")
+    result = extract_domain_signals(text=text)
 
     assert result["domain_tags"] == ["history", "myth", "science"]
     assert result["domain_hits"] == {
@@ -27,8 +27,8 @@ def test_extract_domain_signals_identifies_myth_history_and_science_with_hits():
 def test_extract_domain_signals_is_deterministic_and_bounded_for_unknown_input():
     text = "hello world"
 
-    first = extract_domain_signals(text=text, topic=None)
-    second = extract_domain_signals(text=text, topic=None)
+    first = extract_domain_signals(text=text)
+    second = extract_domain_signals(text=text)
 
     assert first == second
     assert first["domain_tags"] == []

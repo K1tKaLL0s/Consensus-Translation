@@ -40,7 +40,7 @@ def run_local_job(
 
     update_stage(StageStatus.CROSS_CHECK, 0.65)
 
-    domain_signals = extract_domain_signals(text=text, topic=topic)
+    domain_signals = extract_domain_signals(text=text)
     domain_tags = domain_signals["domain_tags"]
     domain_hits = domain_signals["domain_hits"]
 
@@ -61,6 +61,8 @@ def run_local_job(
 
     winner = choose_candidate(left, right, settings.mdwc_weights)
     winner_score = score_candidate(winner, settings.mdwc_weights)
+    domain_adjustment = min(0.01 * len(domain_tags), 0.03)
+    winner_score = min(winner_score + domain_adjustment, 1.0)
     needs_review = winner_score < 0.55
 
     final_text = a_text if winner is left else b_text
@@ -96,7 +98,7 @@ def run_local_job(
         "user_prior": winner.user_prior,
         "decision_reason": "left-score-greater-or-equal" if winner is left else "right-score-greater",
         "domain_tags": domain_tags,
-        "decision_trace": f"domain_weight_adjustment: tags={','.join(domain_tags) if domain_tags else 'none'}",
+        "decision_trace": f"domain_weight_adjustment: +{domain_adjustment:.3f} tags={','.join(domain_tags) if domain_tags else 'none'}",
         "domain_hits": domain_hits,
     }
 

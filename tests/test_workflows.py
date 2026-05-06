@@ -106,9 +106,7 @@ def test_local_job_marks_needs_review_when_scores_low(monkeypatch):
     assert result["needs_review"] is True
 
 
-def test_local_job_includes_domain_tags_and_trace_mentions_domain_weight_adjustment(
-    monkeypatch,
-):
+def test_local_job_applies_domain_adjustment_and_reports_trace_and_hits(monkeypatch):
     monkeypatch.setattr(
         "consensus_translation.workflows.LocalEngineA.translate",
         lambda _self, _text, _source, _target: ("ancestor chronicle", 0.7),
@@ -126,7 +124,32 @@ def test_local_job_includes_domain_tags_and_trace_mentions_domain_weight_adjustm
     )
 
     assert result["domain_tags"] == ["history", "myth"]
-    assert "domain_weight_adjustment" in result["decision_trace"]
+    assert result["domain_hits"] == {"myth": 2, "history": 1, "science": 0}
+    assert result["decision_trace"] == "domain_weight_adjustment: +0.020 tags=history,myth"
+    assert result["final_score"] == pytest.approx(0.5725)
+
+
+def test_local_job_with_no_domain_signals_has_zero_adjustment_trace(monkeypatch):
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineA.translate",
+        lambda _self, _text, _source, _target: ("hello", 0.45),
+    )
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineB.translate",
+        lambda _self, _text, _source, _target: ("hi", 0.4),
+    )
+
+    result = run_local_job(
+        text="你好",
+        source_lang="zh",
+        target_lang="ja",
+        topic="greeting",
+    )
+
+    assert result["domain_tags"] == []
+    assert result["domain_hits"] == {"myth": 0, "history": 0, "science": 0}
+    assert result["decision_trace"] == "domain_weight_adjustment: +0.000 tags=none"
+    assert result["final_score"] == pytest.approx(0.4525)
 
 
 def test_health_report_has_three_levels_and_ok_flags():

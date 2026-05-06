@@ -33,7 +33,7 @@ def _tokenize(text: str) -> list[str]:
     return re.findall(r"[a-z]+", text.lower())
 
 
-def extract_domain_signals(text: str, topic: str | None) -> dict[str, object]:
+def extract_domain_signals(text: str) -> dict[str, object]:
     combined_tokens = _tokenize(text)
 
     hits: dict[str, int] = {}
