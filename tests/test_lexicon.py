@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import sys
 
 
@@ -66,3 +67,42 @@ def test_default_store_path_uses_local_app_data(monkeypatch, tmp_path):
 
     assert str(repo._store_path).startswith(str(tmp_path))
     assert repo._store_path.name == "lexicon.json"
+
+
+def test_apply_revision_writes_schema_v2_layers(tmp_path):
+    store_file = tmp_path / "lexicon.json"
+    repo = LexiconRepo(store_path=store_file)
+
+    repo.apply_revision(
+        RevisionPayload(
+            topic="travel",
+            source="车站",
+            target="駅",
+            diff_ratio=0.1,
+        )
+    )
+
+    data = json.loads(store_file.read_text(encoding="utf-8"))
+    assert data["travel"]["terms"]["车站"] == "駅"
+    assert data["travel"]["phrases"] == {}
+    assert data["travel"]["style_rules"] == {}
+
+
+def test_export_topic_returns_full_three_layer_payload(tmp_path):
+    repo = LexiconRepo(store_path=tmp_path / "lexicon.json")
+    repo.apply_revision(
+        RevisionPayload(
+            topic="travel",
+            source="车站",
+            target="駅",
+            diff_ratio=0.1,
+        )
+    )
+
+    exported = repo.export_topic("travel")
+
+    assert exported == {
+        "terms": {"车站": "駅"},
+        "phrases": {},
+        "style_rules": {},
+    }
