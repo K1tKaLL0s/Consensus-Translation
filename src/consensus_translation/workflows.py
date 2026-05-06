@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from consensus_translation.config import AppSettings
@@ -7,7 +8,10 @@ from consensus_translation.engines import LocalEngineA, LocalEngineB
 from consensus_translation.evaluation import evaluate_translation
 from consensus_translation.lexicon import LexiconRepo, RevisionPayload
 from consensus_translation.mdwc import DecisionInput, choose_candidate, score_candidate
-from consensus_translation.ops import export_audit_payload, resolve_minimum_log_level
+from consensus_translation.ops import apply_minimum_log_level, export_audit_payload
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def run_local_job(
@@ -18,6 +22,17 @@ def run_local_job(
     audit_path: str | Path | None = None,
     resume_from_stage: StageStatus | str | None = None,
 ) -> dict[str, object]:
+    effective_log_level = apply_minimum_log_level(LOGGER)
+    LOGGER.info(
+        "local workflow started",
+        extra={
+            "source_lang": source_lang,
+            "target_lang": target_lang,
+            "topic": topic,
+            "minimum_log_level": effective_log_level,
+        },
+    )
+
     settings = AppSettings()
     contract = TranslationJobContract.new_job(
         mode="local",
@@ -51,6 +66,13 @@ def run_local_job(
     try:
         a_text, a_conf = engine_a.translate(text, source_lang, target_lang)
         b_text, b_conf = engine_b.translate(text, source_lang, target_lang)
+        LOGGER.debug(
+            "engine outputs captured",
+            extra={
+                "confidence_a": a_conf,
+                "confidence_b": b_conf,
+            },
+        )
     except Exception as exc:
         contract.stage_status.error_code = "ENGINE_FAILURE"
         contract.stage_status.error_message = str(exc)
@@ -120,7 +142,7 @@ def run_local_job(
         "domain_hits": domain_hits,
         "checkpoint_used": checkpoint_used,
         "resume_from_stage": resume_value,
-        "minimum_log_level": resolve_minimum_log_level(),
+        "minimum_log_level": effective_log_level,
     }
 
     if audit_path is not None:

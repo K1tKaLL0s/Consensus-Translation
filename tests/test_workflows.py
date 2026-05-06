@@ -255,3 +255,57 @@ def test_local_job_audit_uses_minimum_log_level_env(monkeypatch, tmp_path):
 
     audit_payload = json.loads(audit_path.read_text(encoding="utf-8"))
     assert audit_payload["minimum_log_level"] == "WARNING"
+
+
+def test_local_job_runtime_log_level_suppresses_debug_at_info(monkeypatch, caplog):
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineA.translate",
+        lambda _self, _text, _source, _target: ("station", 0.8),
+    )
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineB.translate",
+        lambda _self, _text, _source, _target: ("train station", 0.6),
+    )
+    monkeypatch.setenv("CT_MIN_LOG_LEVEL", "INFO")
+
+    with caplog.at_level("DEBUG", logger="consensus_translation.workflows"):
+        run_local_job(
+            text="车站",
+            source_lang="zh",
+            target_lang="ja",
+            topic="travel",
+        )
+
+    debug_messages = [
+        record.getMessage() for record in caplog.records if record.levelname == "DEBUG"
+    ]
+    info_messages = [
+        record.getMessage() for record in caplog.records if record.levelname == "INFO"
+    ]
+    assert all("engine outputs captured" not in message for message in debug_messages)
+    assert any("local workflow started" in message for message in info_messages)
+
+
+def test_local_job_runtime_log_level_emits_debug_at_debug(monkeypatch, caplog):
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineA.translate",
+        lambda _self, _text, _source, _target: ("station", 0.8),
+    )
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineB.translate",
+        lambda _self, _text, _source, _target: ("train station", 0.6),
+    )
+    monkeypatch.setenv("CT_MIN_LOG_LEVEL", "DEBUG")
+
+    with caplog.at_level("DEBUG", logger="consensus_translation.workflows"):
+        run_local_job(
+            text="车站",
+            source_lang="zh",
+            target_lang="ja",
+            topic="travel",
+        )
+
+    debug_messages = [
+        record.getMessage() for record in caplog.records if record.levelname == "DEBUG"
+    ]
+    assert any("engine outputs captured" in message for message in debug_messages)
