@@ -2,7 +2,7 @@ from __future__ import annotations
 from io import BytesIO
 from pathlib import Path
 import sys
-from typing import Literal, TypedDict
+from typing import Callable, Literal, TypedDict
 
 
 ROOT = Path(__file__).resolve().parent
@@ -129,6 +129,69 @@ class UploadParseMetadata(TypedDict):
     file_type: str | None
     file_ext: str | None
     reason: UploadParseReason | None
+
+
+class FinalOutputActionState(TypedDict):
+    finalized: bool
+    should_writeback: bool
+
+
+class FinalOutputDisplayState(TypedDict):
+    show_final_output: bool
+    show_provisional: bool
+
+
+def build_payload_context(payload: dict[str, object] | None) -> str | None:
+    data = payload or {}
+    mode = str(data.get("mode") or "")
+    provisional = str(data.get("provisional_text") or "")
+    if provisional.strip():
+        return f"{mode}:{provisional}"
+    return None
+
+
+def clear_chat_revision_state(session_state: dict[str, object]) -> None:
+    session_state["final_output_text"] = ""
+    session_state["last_revision_text"] = ""
+    session_state["revision_state"] = {}
+    session_state["awaiting_revision"] = False
+    session_state["final_output_context"] = None
+    session_state["revision_error"] = None
+
+
+def decide_final_output_display(
+    payload: dict[str, object] | None,
+    final_output_text: str,
+    final_output_context: str | None,
+) -> FinalOutputDisplayState:
+    payload_context = build_payload_context(payload)
+    show_final_output = bool(
+        final_output_text and payload_context and final_output_context == payload_context
+    )
+    show_provisional = bool(not show_final_output and payload_context)
+    return {
+        "show_final_output": show_final_output,
+        "show_provisional": show_provisional,
+    }
+
+
+def run_apply_local_revision_safe(
+    apply_revision_fn: Callable[..., dict[str, object]],
+    source_text: str,
+    provisional_text: str,
+    revised_text: str,
+    topic: str,
+) -> tuple[dict[str, object], str | None]:
+    try:
+        result = apply_revision_fn(
+            source_text=source_text,
+            provisional_text=provisional_text,
+            revised_text=revised_text,
+            topic=topic,
+        )
+        return result, None
+    except Exception as exc:
+        return {}, str(exc)
 
 
 def _resolve_dot_path_with_found(payload: dict[str, object], path: str) -> tuple[bool, object]:
@@ -287,7 +350,11 @@ def build_sidebar_detail_payload(
     }
 
 
-def decide_final_output_action(action: str, revised_text: str, has_provisional: bool) -> dict[str, object]:
+def decide_final_output_action(
+    action: str,
+    revised_text: str,
+    has_provisional: bool,
+) -> FinalOutputActionState:
     if not has_provisional:
         return {"finalized": False, "should_writeback": False}
     if action == "confirm":
@@ -337,10 +404,7 @@ def main() -> None:
     if st.sidebar.button("运行本地任务"):
         st.session_state["last_source_text"] = effective_local_text
         st.session_state["last_topic"] = topic
-        st.session_state["final_output_text"] = ""
-        st.session_state["last_revision_text"] = ""
-        st.session_state["revision_state"] = {}
-        st.session_state["awaiting_revision"] = False
+        clear_chat_revision_state(st.session_state)
         st.session_state["latest_payload"] = run_local_job(
             text=effective_local_text,
             source_lang=source_lang,
@@ -375,6 +439,7 @@ def main() -> None:
     )
     st.sidebar.caption(f"验证输入来源：{effective_validation_meta.get('source', 'manual')}")
     if st.sidebar.button("运行预训练任务"):
+        clear_chat_revision_state(st.session_state)
         st.session_state["latest_payload"] = run_pretrain_job(
             train_text=effective_train_text,
             validation_text=effective_validation_text,
@@ -399,16 +464,22 @@ def main() -> None:
     st.subheader("翻译结果")
     provisional_text = str((latest_payload or {}).get("provisional_text") or "")
     final_output = str(st.session_state.get("final_output_text") or "")
+    final_output_context = st.session_state.get("final_output_context")
+    payload_context = build_payload_context(latest_payload)
+    display_state = decide_final_output_display(latest_payload, final_output, final_output_context)
     has_provisional = bool(provisional_text.strip())
 
-    if final_output:
+    if st.session_state.get("revision_error"):
+        st.error(f"修正写回失败：{st.session_state['revision_error']}")
+
+    if display_state["show_final_output"]:
         revision_text = str(st.session_state.get("last_revision_text") or "")
         if revision_text:
             with st.chat_message("user"):
                 st.write(revision_text)
         with st.chat_message("assistant"):
             st.write(final_output)
-    elif has_provisional:
+    elif display_state["show_provisional"] and has_provisional:
         with st.chat_message("assistant"):
             st.write(provisional_text)
 
@@ -420,7 +491,9 @@ def main() -> None:
             action_state = decide_final_output_action("confirm", "", has_provisional)
             if bool(action_state.get("finalized")):
                 st.session_state["final_output_text"] = provisional_text
+                st.session_state["final_output_context"] = payload_context
                 st.session_state["awaiting_revision"] = False
+                st.session_state["revision_error"] = None
                 st.rerun()
 
         if revise_clicked:
@@ -431,17 +504,23 @@ def main() -> None:
             if user_revision is not None:
                 action_state = decide_final_output_action("revise", user_revision, has_provisional)
                 if bool(action_state.get("should_writeback")):
-                    revision_result = apply_local_revision(
+                    revision_result, revision_error = run_apply_local_revision_safe(
+                        apply_revision_fn=apply_local_revision,
                         source_text=str(st.session_state.get("last_source_text") or ""),
                         provisional_text=provisional_text,
                         revised_text=user_revision,
                         topic=str(st.session_state.get("last_topic") or topic),
                     )
-                    st.session_state["revision_state"] = revision_result
-                    st.session_state["last_revision_text"] = user_revision
-                    st.session_state["final_output_text"] = user_revision
-                    st.session_state["awaiting_revision"] = False
-                    st.rerun()
+                    if revision_error is None:
+                        st.session_state["revision_state"] = revision_result
+                        st.session_state["last_revision_text"] = user_revision
+                        st.session_state["final_output_text"] = user_revision
+                        st.session_state["final_output_context"] = payload_context
+                        st.session_state["awaiting_revision"] = False
+                        st.session_state["revision_error"] = None
+                        st.rerun()
+                    else:
+                        st.session_state["revision_error"] = revision_error
 
 
 if __name__ == "__main__":

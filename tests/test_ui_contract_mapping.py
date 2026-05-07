@@ -16,12 +16,15 @@ from app import (
     PAGE_FIELD_MAP,
     PAGE_LABEL_MAP,
     build_result_panel,
+    clear_chat_revision_state,
     decide_final_output_action,
+    decide_final_output_display,
     extract_uploaded_text,
     extract_page_data,
     get_page_select_keys,
     resolve_input_text,
     resolve_dot_path,
+    run_apply_local_revision_safe,
 )
 
 
@@ -414,3 +417,63 @@ def test_decide_final_output_action_revise_requires_writeback():
 
     assert state["finalized"] is False
     assert state["should_writeback"] is True
+
+
+def test_decide_final_output_action_blank_revision_does_not_writeback():
+    state = decide_final_output_action(
+        action="revise",
+        revised_text="   ",
+        has_provisional=True,
+    )
+
+    assert state["finalized"] is False
+    assert state["should_writeback"] is False
+
+
+def test_clear_chat_revision_state_resets_all_chat_keys():
+    state = {
+        "final_output_text": "旧输出",
+        "last_revision_text": "旧修订",
+        "revision_state": {"ok": True},
+        "awaiting_revision": True,
+        "final_output_context": "ctx-old",
+        "revision_error": "boom",
+    }
+
+    clear_chat_revision_state(state)
+
+    assert state["final_output_text"] == ""
+    assert state["last_revision_text"] == ""
+    assert state["revision_state"] == {}
+    assert state["awaiting_revision"] is False
+    assert state["final_output_context"] is None
+    assert state["revision_error"] is None
+
+
+def test_decide_final_output_display_hides_stale_context_output():
+    payload = {"mode": "local", "provisional_text": "当前候选"}
+
+    result = decide_final_output_display(
+        payload=payload,
+        final_output_text="历史输出",
+        final_output_context="ctx-old",
+    )
+
+    assert result["show_final_output"] is False
+    assert result["show_provisional"] is True
+
+
+def test_run_apply_local_revision_safe_returns_error_instead_of_throwing():
+    def raiser(**kwargs):
+        raise RuntimeError("writeback failed")
+
+    result, err = run_apply_local_revision_safe(
+        apply_revision_fn=raiser,
+        source_text="src",
+        provisional_text="prov",
+        revised_text="rev",
+        topic="travel",
+    )
+
+    assert result == {}
+    assert err == "writeback failed"
