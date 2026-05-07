@@ -156,6 +156,14 @@ powershell -ExecutionPolicy Bypass -File .\run_streamlit.ps1
 - 预训练模式下，结果面板同时展示预训练摘要字段与本地基线字段。
 - 若需排障或审计，请展开侧栏 `页面详情与状态` 查看完整契约数据。
 
+### 5.6 Confirm/Revise 复核门与词库写回
+
+- 本地模式在产出候选后进入 `confirm/revise` 复核门：
+  - `confirm`：接受当前候选并完成流程，不触发词库写回。
+  - `revise`：进入修订分支，允许在最终确认前调整译文与术语。
+- 词库 `lexicon` 的 writeback 仅在 revise 路径发生，即“仅在 revise 写回”；`confirm` 路径不会写入词库。
+- 输入来源仍遵循上传优先与手动回退融合规则；复核门决策只影响是否进入修订与是否执行 writeback，不改变输入回退策略。
+
 ## 6. 文件与数据说明
 
 - 词库默认路径：`%LOCALAPPDATA%\ConsensusTranslation\lexicon.json`

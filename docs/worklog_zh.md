@@ -187,3 +187,24 @@
    - 两条 `SwigPyPacked/SwigPyObject` 的 `DeprecationWarning`
    - 一条 Marian tokenizer 的 `sacremoses` 建议安装提示
    - 当前均未阻断测试通过，后续按依赖升级节奏处理。
+
+## 十二、Task 4 本地模式行为补录（2026-05-07）
+
+1. 行为与文档对齐项
+   - 补录本地模式复核门为 `confirm/revise`：
+     - `confirm` 只确认输出，不执行词库写回。
+     - `revise` 进入修订路径，且仅该路径触发词库 writeback。
+   - 用户手册已同步“仅在 revise 写回”的约束，避免将确认路径误解为会写库。
+
+2. 关键行为核验（fallback merge + confirm/revise + revise writeback）
+   - 命令：`E:\Ana\python.exe -m pytest -q tests/test_merging.py tests/test_ui_contract_mapping.py`
+   - 结果：`35 passed in 1.59s`
+   - 结论：
+     - fallback merge 路径通过（低重叠回退决策相关用例通过）。
+     - confirm/revise 复核门行为通过（确认不写回、修订可写回、空修订不写回）。
+     - revise 写回失败路径的错误传播断言通过（保持可观测性）。
+
+3. 全量回归核验（本轮要求命令）
+   - 命令：`E:\Ana\python.exe -m pytest -q`
+   - 结果：`82 passed, 3 warnings in 40.44s`
+   - 结论：本轮文档与断言补录后，全量测试保持 `0 failed`。
