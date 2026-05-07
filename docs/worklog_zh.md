@@ -157,4 +157,10 @@
    - 命令：`pytest -q` -> 结果：`53 passed, 3 warnings in 57.04s` -> 事实：该轮全量回归无失败（见第七节第 2 条）。
    - 命令：`E:\Ana\python.exe -m pytest -v tests/test_ui_contract_mapping.py tests/test_workflows.py` -> 结果：`35 passed, 3 warnings in 40.16s` -> 事实：上传输入解析/回退与输出面板相关路径在增强后通过（见第八节第 1 条）。
    - 命令：`E:\Ana\python.exe -m pytest -q` -> 结果：`63 passed, 3 warnings in 45.16s` -> 事实：增强后全量回归仍保持无失败（见第八节第 2 条）。
-   - 命令：`powershell -ExecutionPolicy Bypass -File .\run_streamlit.ps1` -> 启动事实：`deps-ok`、`Local URL: http://localhost:8502`、`Network URL: http://192.168.5.4:8502`、探活 `HTTP 200`、检测到 `file_uploader` 与 `翻译结果` 面板 -> 进程处置：验证后安全停止后台 Job（见第七节第 3 条与第八节第 3 条）。
+    - 命令：`powershell -ExecutionPolicy Bypass -File .\run_streamlit.ps1` -> 启动事实：`deps-ok`、`Local URL: http://localhost:8502`、`Network URL: http://192.168.5.4:8502`、探活 `HTTP 200`、检测到 `file_uploader` 与 `翻译结果` 面板 -> 进程处置：验证后安全停止后台 Job（见第七节第 3 条与第八节第 3 条）。
+
+## 十、最终收口与合并状态（2026-05-07）
+
+- 文件上传功能（`txt/md/docx`）与固定输出面板已在 `main` 完成合并。
+- 合并后全量核验：`pytest -q` -> `63 passed, 3 warnings`。
+- 用户手册按钮文案与中文 UI 实际行为已对齐（`运行本地任务` / `运行预训练任务`）。

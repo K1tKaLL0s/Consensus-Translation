@@ -126,8 +126,8 @@ powershell -ExecutionPolicy Bypass -File .\run_streamlit.ps1
 
 ### 5.3 执行任务
 
-- 点击 `Run Local Job`：执行本地模式
-- 点击 `Run Pretrain Job`：执行预训练模式
+- 点击 `运行本地任务`：执行本地模式
+- 点击 `运行预训练任务`：执行预训练模式
 
 ### 5.3.1 上传文件工作流（新增）
 
