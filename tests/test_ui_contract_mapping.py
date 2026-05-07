@@ -9,6 +9,8 @@ if str(ROOT) not in sys.path:
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+import app
+
 
 from app import (
     PAGE_FIELD_MAP,
@@ -177,6 +179,48 @@ def test_page_label_values_are_unique_to_avoid_display_collisions():
 
 def test_page_selector_options_use_stable_contract_keys():
     assert get_page_select_keys() == list(PAGE_FIELD_MAP.keys())
+
+
+def test_language_options_are_fixed_for_ui_restructure_contract():
+    assert getattr(app, "LANGUAGE_OPTIONS", None) == ["zh", "en", "ja"]
+
+
+def test_resolve_topic_value_prefers_manual_override_over_selected_topic():
+    resolver = getattr(app, "resolve_topic_value", None)
+    assert callable(resolver)
+
+    assert resolver("manual-topic", "selected-topic") == "manual-topic"
+    assert resolver("  with-spaces  ", "selected-topic") == "with-spaces"
+
+
+def test_resolve_topic_value_falls_back_to_selected_topic_when_manual_empty():
+    resolver = getattr(app, "resolve_topic_value", None)
+    assert callable(resolver)
+
+    assert resolver("", "selected-topic") == "selected-topic"
+    assert resolver("   ", "selected-topic") == "selected-topic"
+
+
+def test_build_sidebar_detail_payload_includes_page_key_and_page_data():
+    builder = getattr(app, "build_sidebar_detail_payload", None)
+    assert callable(builder)
+
+    payload = {
+        "contract": {
+            "job_id": "job-1",
+            "mode": "local",
+            "source_lang": "zh",
+            "target_lang": "ja",
+            "topic": "travel",
+            "domain_tags": ["general"],
+            "granularity": "sentence",
+        }
+    }
+
+    detail = builder("config", payload)
+
+    assert detail["page_key"] == "config"
+    assert detail["page_data"]["job_id"] == "job-1"
 
 
 class DummyUpload:
