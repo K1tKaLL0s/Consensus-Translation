@@ -27,9 +27,20 @@ def test_merge_sentences_prefers_consensus_when_overlap_high():
         a_conf=0.62,
         b_conf=0.70,
     )
-    assert result.final_text.startswith("駅へ行く。")
+    assert result.final_text == "駅へ行く。どうも。"
     assert result.decision_reason == "sentence-merge-consensus"
-    assert len(result.merge_trace) == 2
+    assert result.merge_trace == [
+        {
+            "sentence_index": 0,
+            "chosen": "駅へ行く。",
+            "reason": "consensus-higher-confidence",
+        },
+        {
+            "sentence_index": 1,
+            "chosen": "どうも。",
+            "reason": "low-overlap-fallback-confidence",
+        },
+    ]
 
 
 def test_merge_sentences_falls_back_to_higher_confidence_for_remaining_sentence():
@@ -39,4 +50,17 @@ def test_merge_sentences_falls_back_to_higher_confidence_for_remaining_sentence(
         a_conf=0.75,
         b_conf=0.60,
     )
-    assert result.final_text.endswith("A two.")
+    assert result.final_text == "A one. A two."
+    assert result.decision_reason == "sentence-merge-mixed"
+    assert result.merge_trace == [
+        {
+            "sentence_index": 0,
+            "chosen": "A one.",
+            "reason": "consensus-higher-confidence",
+        },
+        {
+            "sentence_index": 1,
+            "chosen": " A two.",
+            "reason": "left-only",
+        },
+    ]
