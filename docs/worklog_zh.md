@@ -115,3 +115,27 @@
      - `Local URL: http://localhost:8502`
      - `Network URL: http://192.168.5.4:8502`
    - 进程处置：验证到服务进入运行态（`JOB_STATE=Running`）后，已安全停止后台 Job，避免占用端口。
+
+## 八、Task 3 文档与核验落盘（2026-05-07）
+
+1. 指定测试命令核验
+   - 命令：`E:\Ana\python.exe -m pytest -v tests/test_ui_contract_mapping.py tests/test_workflows.py`
+   - 结果：`35 passed, 3 warnings in 40.16s`
+   - 结论：UI 契约映射、上传输入解析/回退、结果面板构建、工作流关键路径全部通过。
+
+2. 全量测试命令核验
+   - 命令：`E:\Ana\python.exe -m pytest -q`
+   - 结果：`63 passed, 3 warnings in 45.16s`
+   - 结论：当前仓库全量用例全部通过，无失败项。
+
+3. 启动与手工烟测（安全启动/停止）
+   - 启动命令：`powershell -ExecutionPolicy Bypass -File .\run_streamlit.ps1`
+   - 探活结果：`Local URL: http://localhost:8502`，HTTP `200`
+   - 可见性核验：
+     - 使用 Streamlit AppTest 解析元素树，侧栏检测到 `file_uploader` 元素（`UnknownElement(type='file_uploader')`），确认上传控件存在。
+     - 页面检测到 `翻译结果` 子标题对应输出面板，确认输出面板存在。
+   - 进程处置：核验完成后已停止后台 Job 并移除 Job 记录，未遗留占用进程。
+
+4. 用户文档更新
+   - `docs/user_manual_zh.md` 已补充“上传文件工作流（5.3.1）”与“输出面板说明（5.5）”。
+   - 核心说明：上传成功时优先使用上传文本，异常或空内容时自动回退手动输入；输出面板固定可见。
