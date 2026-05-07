@@ -135,7 +135,7 @@ powershell -ExecutionPolicy Bypass -File .\run_streamlit.ps1
 当前 UI 在侧栏维护三组独立输入，每组都遵循“上传优先，失败回退手动”的融合策略：
 
 1. 本地任务输入：`本地文本` + `上传本地文本（txt/md/docx）`
-2. 预训练训练输入：`预训练文本` + `上传预训练文本（txt/md/docx）`
+2. 预训练任务输入：`预训练文本` + `上传预训练文本（txt/md/docx）`
 3. 预训练验证输入：`验证文本` + `上传验证文本（txt/md/docx）`
 
 执行规则：
