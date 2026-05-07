@@ -15,7 +15,7 @@ try:
 except ModuleNotFoundError:  # pragma: no cover
     st = None
 
-from consensus_translation.workflows import run_local_job, run_pretrain_job
+from consensus_translation.workflows import apply_local_revision, run_local_job, run_pretrain_job
 
 PAGE_FIELD_MAP: dict[str, list[str]] = {
     "config": [
@@ -287,6 +287,16 @@ def build_sidebar_detail_payload(
     }
 
 
+def decide_final_output_action(action: str, revised_text: str, has_provisional: bool) -> dict[str, object]:
+    if not has_provisional:
+        return {"finalized": False, "should_writeback": False}
+    if action == "confirm":
+        return {"finalized": True, "should_writeback": False}
+    if action == "revise" and revised_text.strip():
+        return {"finalized": False, "should_writeback": True}
+    return {"finalized": False, "should_writeback": False}
+
+
 def main() -> None:
     if st is None:  # pragma: no cover
         raise RuntimeError("streamlit is required to run the UI")
@@ -296,6 +306,8 @@ def main() -> None:
 
     if "latest_payload" not in st.session_state:
         st.session_state["latest_payload"] = {}
+    if "awaiting_revision" not in st.session_state:
+        st.session_state["awaiting_revision"] = False
 
     st.sidebar.header("任务运行")
     source_lang = st.sidebar.selectbox("源语言", LANGUAGE_OPTIONS, index=0)
@@ -323,6 +335,12 @@ def main() -> None:
     )
     st.sidebar.caption(f"本地任务输入来源：{effective_local_meta.get('source', 'manual')}")
     if st.sidebar.button("运行本地任务"):
+        st.session_state["last_source_text"] = effective_local_text
+        st.session_state["last_topic"] = topic
+        st.session_state["final_output_text"] = ""
+        st.session_state["last_revision_text"] = ""
+        st.session_state["revision_state"] = {}
+        st.session_state["awaiting_revision"] = False
         st.session_state["latest_payload"] = run_local_job(
             text=effective_local_text,
             source_lang=source_lang,
@@ -375,9 +393,55 @@ def main() -> None:
     detail_payload = build_sidebar_detail_payload(page, page_data, latest_payload)
     with st.sidebar.expander("页面详情与状态", expanded=False):
         st.json(detail_payload)
+    with st.sidebar.expander("结果详情（技术）", expanded=False):
+        st.json(build_result_panel(latest_payload))
 
     st.subheader("翻译结果")
-    st.json(build_result_panel(latest_payload))
+    provisional_text = str((latest_payload or {}).get("provisional_text") or "")
+    final_output = str(st.session_state.get("final_output_text") or "")
+    has_provisional = bool(provisional_text.strip())
+
+    if final_output:
+        revision_text = str(st.session_state.get("last_revision_text") or "")
+        if revision_text:
+            with st.chat_message("user"):
+                st.write(revision_text)
+        with st.chat_message("assistant"):
+            st.write(final_output)
+    elif has_provisional:
+        with st.chat_message("assistant"):
+            st.write(provisional_text)
+
+        confirm_col, revise_col = st.columns(2)
+        confirm_clicked = confirm_col.button("确认", key="confirm_result")
+        revise_clicked = revise_col.button("修正", key="revise_result")
+
+        if confirm_clicked:
+            action_state = decide_final_output_action("confirm", "", has_provisional)
+            if bool(action_state.get("finalized")):
+                st.session_state["final_output_text"] = provisional_text
+                st.session_state["awaiting_revision"] = False
+                st.rerun()
+
+        if revise_clicked:
+            st.session_state["awaiting_revision"] = True
+
+        if st.session_state.get("awaiting_revision", False):
+            user_revision = st.chat_input("请输入修正内容", key="revision_input")
+            if user_revision is not None:
+                action_state = decide_final_output_action("revise", user_revision, has_provisional)
+                if bool(action_state.get("should_writeback")):
+                    revision_result = apply_local_revision(
+                        source_text=str(st.session_state.get("last_source_text") or ""),
+                        provisional_text=provisional_text,
+                        revised_text=user_revision,
+                        topic=str(st.session_state.get("last_topic") or topic),
+                    )
+                    st.session_state["revision_state"] = revision_result
+                    st.session_state["last_revision_text"] = user_revision
+                    st.session_state["final_output_text"] = user_revision
+                    st.session_state["awaiting_revision"] = False
+                    st.rerun()
 
 
 if __name__ == "__main__":

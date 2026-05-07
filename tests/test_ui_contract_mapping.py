@@ -16,6 +16,7 @@ from app import (
     PAGE_FIELD_MAP,
     PAGE_LABEL_MAP,
     build_result_panel,
+    decide_final_output_action,
     extract_uploaded_text,
     extract_page_data,
     get_page_select_keys,
@@ -391,3 +392,25 @@ def test_build_result_panel_extracts_pretrain_and_base_local_fields():
     assert panel["local_decision_reason"] == "right-score-greater"
     assert panel["pretrain_calibration_summary"] == "pretrain-complete"
     assert panel["pretrain_improvement_rate"] == 0.12
+
+
+def test_decide_final_output_action_confirm_does_not_writeback():
+    state = decide_final_output_action(
+        action="confirm",
+        revised_text="",
+        has_provisional=True,
+    )
+
+    assert state["finalized"] is True
+    assert state["should_writeback"] is False
+
+
+def test_decide_final_output_action_revise_requires_writeback():
+    state = decide_final_output_action(
+        action="revise",
+        revised_text="修正文",
+        has_provisional=True,
+    )
+
+    assert state["finalized"] is False
+    assert state["should_writeback"] is True
