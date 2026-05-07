@@ -7,11 +7,72 @@ from consensus_translation.domain_signals import extract_domain_signals
 from consensus_translation.engines import LocalEngineA, LocalEngineB
 from consensus_translation.evaluation import evaluate_translation
 from consensus_translation.lexicon import LexiconRepo, RevisionPayload
+from consensus_translation.merging import merge_sentences
 from consensus_translation.mdwc import DecisionInput, choose_candidate, score_candidate
 from consensus_translation.ops import apply_minimum_log_level, export_audit_payload
 
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _safe_translate(
+    engine: object,
+    engine_name: str,
+    text: str,
+    source_lang: str,
+    target_lang: str,
+) -> dict[str, object]:
+    try:
+        output, conf = engine.translate(text, source_lang, target_lang)
+        return {"ok": True, "text": output, "confidence": conf, "error": None}
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "ok": False,
+            "text": None,
+            "confidence": 0.0,
+            "error": f"{engine_name}: {exc}",
+        }
+
+
+def _diff_ratio(left: str, right: str) -> float:
+    left_set = set(left.strip())
+    right_set = set(right.strip())
+    union = left_set | right_set
+    if not union:
+        return 0.0
+    return 1.0 - (len(left_set & right_set) / len(union))
+
+
+def apply_local_revision(
+    source_text: str,
+    provisional_text: str,
+    revised_text: str,
+    topic: str | None,
+    lexicon_repo: LexiconRepo | None = None,
+) -> dict[str, object]:
+    repo = lexicon_repo or LexiconRepo()
+    effective_topic = topic or "uncategorized"
+    ratio = _diff_ratio(provisional_text, revised_text)
+    event = repo.apply_revision(
+        RevisionPayload(
+            topic=effective_topic,
+            source=source_text,
+            target=revised_text,
+            diff_ratio=ratio,
+        )
+    )
+
+    return {
+        "diff_ratio": ratio,
+        "special_flag": event.special_flag,
+        "update_status": "ok",
+        "lexicon_updates": [
+            {
+                "topic": effective_topic,
+                "special_flag": event.special_flag,
+            }
+        ],
+    }
 
 
 def run_local_job(
@@ -63,9 +124,29 @@ def run_local_job(
     update_stage(StageStatus.SEGMENT, 0.2)
     update_stage(StageStatus.ENGINE, 0.45)
 
-    try:
-        a_text, a_conf = engine_a.translate(text, source_lang, target_lang)
-        b_text, b_conf = engine_b.translate(text, source_lang, target_lang)
+    engine_a_result = _safe_translate(engine_a, "engine_a", text, source_lang, target_lang)
+    engine_b_result = _safe_translate(engine_b, "engine_b", text, source_lang, target_lang)
+
+    engine_errors: dict[str, str] = {}
+    if not bool(engine_a_result["ok"]):
+        engine_errors["engine_a"] = str(engine_a_result["error"])
+    if not bool(engine_b_result["ok"]):
+        engine_errors["engine_b"] = str(engine_b_result["error"])
+
+    if not bool(engine_a_result["ok"]) and not bool(engine_b_result["ok"]):
+        contract.stage_status.error_code = "ENGINE_FAILURE"
+        contract.stage_status.error_message = str(engine_errors)
+        raise RuntimeError("both engines failed")
+
+    if bool(engine_a_result["ok"]) and bool(engine_b_result["ok"]):
+        a_text = str(engine_a_result["text"])
+        b_text = str(engine_b_result["text"])
+        a_conf = float(engine_a_result["confidence"])
+        b_conf = float(engine_b_result["confidence"])
+        merged = merge_sentences(a_text, b_text, a_conf, b_conf)
+        final_text = merged.final_text
+        decision_reason = merged.decision_reason
+        merge_trace = merged.merge_trace
         LOGGER.debug(
             "engine outputs captured",
             extra={
@@ -73,10 +154,22 @@ def run_local_job(
                 "confidence_b": b_conf,
             },
         )
-    except Exception as exc:
-        contract.stage_status.error_code = "ENGINE_FAILURE"
-        contract.stage_status.error_message = str(exc)
-        raise
+    elif bool(engine_a_result["ok"]):
+        a_text = str(engine_a_result["text"])
+        a_conf = float(engine_a_result["confidence"])
+        b_text = ""
+        b_conf = 0.0
+        final_text = a_text
+        decision_reason = "engine-single-survivor-a"
+        merge_trace = []
+    else:
+        a_text = ""
+        a_conf = 0.0
+        b_text = str(engine_b_result["text"])
+        b_conf = float(engine_b_result["confidence"])
+        final_text = b_text
+        decision_reason = "engine-single-survivor-b"
+        merge_trace = []
 
     update_stage(StageStatus.CROSS_CHECK, 0.65)
 
@@ -105,9 +198,12 @@ def run_local_job(
     winner_score = min(winner_score + domain_adjustment, 1.0)
     needs_review = winner_score < 0.55
 
-    final_text = a_text if winner is left else b_text
+    if bool(engine_a_result["ok"]) and bool(engine_b_result["ok"]):
+        winner_text = a_text if winner is left else b_text
+        if not final_text:
+            final_text = winner_text
     winner_side = "left" if winner is left else "right"
-    overlap_score = 1.0 if a_text == b_text else 0.5
+    overlap_score = 1.0 if a_text == b_text and a_text else 0.5
 
     update_stage(StageStatus.REVIEW, 0.95)
     update_stage(StageStatus.FINALIZE, 1.0)
@@ -136,10 +232,13 @@ def run_local_job(
         "sentence_score": winner.sentence_score,
         "segment_score": winner.segment_score,
         "user_prior": winner.user_prior,
-        "decision_reason": "left-score-greater-or-equal" if winner is left else "right-score-greater",
+        "decision_reason": decision_reason,
         "domain_tags": domain_tags,
         "decision_trace": f"domain_weight_adjustment: +{domain_adjustment:.3f} tags={','.join(domain_tags) if domain_tags else 'none'}",
         "domain_hits": domain_hits,
+        "engine_errors": engine_errors,
+        "merge_trace": merge_trace,
+        "provisional_text": final_text,
         "checkpoint_used": checkpoint_used,
         "resume_from_stage": resume_value,
         "minimum_log_level": effective_log_level,
