@@ -1,4 +1,5 @@
 import logging
+from difflib import SequenceMatcher
 from pathlib import Path
 
 from consensus_translation.config import AppSettings
@@ -35,12 +36,12 @@ def _safe_translate(
 
 
 def _diff_ratio(left: str, right: str) -> float:
-    left_set = set(left.strip())
-    right_set = set(right.strip())
-    union = left_set | right_set
-    if not union:
+    left_text = left.strip()
+    right_text = right.strip()
+    if not left_text and not right_text:
         return 0.0
-    return 1.0 - (len(left_set & right_set) / len(union))
+    similarity = SequenceMatcher(a=left_text, b=right_text).ratio()
+    return 1.0 - similarity
 
 
 def apply_local_revision(
@@ -192,7 +193,12 @@ def run_local_job(
 
     update_stage(StageStatus.MDWC, 0.85)
 
-    winner = choose_candidate(left, right, settings.mdwc_weights)
+    if bool(engine_a_result["ok"]) and bool(engine_b_result["ok"]):
+        winner = choose_candidate(left, right, settings.mdwc_weights)
+    elif bool(engine_a_result["ok"]):
+        winner = left
+    else:
+        winner = right
     winner_score = score_candidate(winner, settings.mdwc_weights)
     domain_adjustment = min(0.01 * len(domain_tags), 0.03)
     winner_score = min(winner_score + domain_adjustment, 1.0)

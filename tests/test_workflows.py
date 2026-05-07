@@ -454,6 +454,25 @@ def test_local_job_survives_engine_a_index_error(monkeypatch):
     assert "engine_a" in result["engine_errors"]
 
 
+def test_local_job_single_survivor_keeps_winner_aligned_with_surviving_engine(
+    monkeypatch,
+):
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("engine a failed")
+
+    monkeypatch.setattr("consensus_translation.workflows.LocalEngineA.translate", boom)
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineB.translate",
+        lambda _self, _text, _source, _target: ("survivor", 0.0),
+    )
+
+    result = run_local_job("你好", "zh", "ja", "general")
+
+    assert result["winner"] == "right"
+    assert result["final_text"] == "survivor"
+    assert result["decision_reason"] == "engine-single-survivor-b"
+
+
 def test_apply_local_revision_writes_uncategorized_when_topic_missing(tmp_path):
     repo = LexiconRepo(store_path=tmp_path / "lexicon.json")
     result = apply_local_revision(
@@ -467,3 +486,17 @@ def test_apply_local_revision_writes_uncategorized_when_topic_missing(tmp_path):
     assert result["update_status"] == "ok"
     assert result["special_flag"] is False
     assert repo.find("uncategorized", "你好") == "こんにちは"
+
+
+def test_apply_local_revision_flags_special_change_for_reordered_text(tmp_path):
+    repo = LexiconRepo(store_path=tmp_path / "lexicon.json")
+    result = apply_local_revision(
+        source_text="term",
+        provisional_text="abcdef",
+        revised_text="fedcba",
+        topic="general",
+        lexicon_repo=repo,
+    )
+
+    assert result["diff_ratio"] >= 0.6
+    assert result["special_flag"] is True
