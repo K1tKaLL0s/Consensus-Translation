@@ -189,16 +189,16 @@ def test_resolve_topic_value_prefers_manual_override_over_selected_topic():
     resolver = getattr(app, "resolve_topic_value", None)
     assert callable(resolver)
 
-    assert resolver("manual-topic", "selected-topic") == "manual-topic"
-    assert resolver("  with-spaces  ", "selected-topic") == "with-spaces"
+    assert resolver("selected-topic", "manual-topic") == "manual-topic"
+    assert resolver("selected-topic", "  with-spaces  ") == "with-spaces"
 
 
 def test_resolve_topic_value_falls_back_to_selected_topic_when_manual_empty():
     resolver = getattr(app, "resolve_topic_value", None)
     assert callable(resolver)
 
-    assert resolver("", "selected-topic") == "selected-topic"
-    assert resolver("   ", "selected-topic") == "selected-topic"
+    assert resolver("selected-topic", "") == "selected-topic"
+    assert resolver("selected-topic", "   ") == "selected-topic"
 
 
 def test_build_sidebar_detail_payload_includes_page_key_and_page_data():
@@ -217,10 +217,12 @@ def test_build_sidebar_detail_payload_includes_page_key_and_page_data():
         }
     }
 
-    detail = builder("config", payload)
+    page_data = app.extract_page_data("config", payload)
+    detail = builder("config", page_data, payload)
 
     assert detail["page_key"] == "config"
     assert detail["page_data"]["job_id"] == "job-1"
+    assert detail["state"]["contract"]["job_id"] == "job-1"
 
 
 class DummyUpload:
