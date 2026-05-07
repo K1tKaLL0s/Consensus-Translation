@@ -16,6 +16,7 @@ from app import (
     PAGE_FIELD_MAP,
     PAGE_LABEL_MAP,
     build_result_panel,
+    build_local_failure_payload,
     clear_chat_revision_state,
     decide_final_output_action,
     decide_final_output_display,
@@ -25,6 +26,7 @@ from app import (
     resolve_input_text,
     resolve_dot_path,
     run_apply_local_revision_safe,
+    run_local_job_safe,
 )
 
 
@@ -397,6 +399,17 @@ def test_build_result_panel_extracts_pretrain_and_base_local_fields():
     assert panel["pretrain_improvement_rate"] == 0.12
 
 
+def test_build_result_panel_includes_sidebar_diagnostic_errors():
+    panel = build_result_panel(
+        {"mode": "local"},
+        revision_error="writeback failed",
+        local_run_error="engine-a and engine-b failed",
+    )
+
+    assert panel["revision_writeback_error"] == "writeback failed"
+    assert panel["local_run_error"] == "engine-a and engine-b failed"
+
+
 def test_decide_final_output_action_confirm_does_not_writeback():
     state = decide_final_output_action(
         action="confirm",
@@ -438,6 +451,7 @@ def test_clear_chat_revision_state_resets_all_chat_keys():
         "awaiting_revision": True,
         "final_output_context": "ctx-old",
         "revision_error": "boom",
+        "local_run_error": "failed",
     }
 
     clear_chat_revision_state(state)
@@ -448,6 +462,7 @@ def test_clear_chat_revision_state_resets_all_chat_keys():
     assert state["awaiting_revision"] is False
     assert state["final_output_context"] is None
     assert state["revision_error"] is None
+    assert state["local_run_error"] is None
 
 
 def test_decide_final_output_display_hides_stale_context_output():
@@ -477,3 +492,43 @@ def test_run_apply_local_revision_safe_returns_error_instead_of_throwing():
 
     assert result == {}
     assert err == "writeback failed"
+
+
+def test_build_local_failure_payload_sets_chat_visible_failure_message():
+    payload = build_local_failure_payload()
+
+    assert payload["mode"] == "local"
+    assert payload["provisional_text"] == "翻译失败"
+
+
+def test_run_local_job_safe_returns_fallback_payload_on_exception():
+    def raiser(**kwargs):
+        raise RuntimeError("all engines failed")
+
+    payload, err = run_local_job_safe(
+        run_local_job_fn=raiser,
+        text="你好",
+        source_lang="zh",
+        target_lang="ja",
+        topic="general",
+    )
+
+    assert err == "all engines failed"
+    assert payload["mode"] == "local"
+    assert payload["provisional_text"] == "翻译失败"
+
+
+def test_run_local_job_safe_returns_normal_payload_on_success():
+    def ok_runner(**kwargs):
+        return {"mode": "local", "provisional_text": "正常输出"}
+
+    payload, err = run_local_job_safe(
+        run_local_job_fn=ok_runner,
+        text="你好",
+        source_lang="zh",
+        target_lang="ja",
+        topic="general",
+    )
+
+    assert err is None
+    assert payload == {"mode": "local", "provisional_text": "正常输出"}

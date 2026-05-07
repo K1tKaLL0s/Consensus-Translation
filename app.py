@@ -157,6 +157,7 @@ def clear_chat_revision_state(session_state: dict[str, object]) -> None:
     session_state["awaiting_revision"] = False
     session_state["final_output_context"] = None
     session_state["revision_error"] = None
+    session_state["local_run_error"] = None
 
 
 def decide_final_output_display(
@@ -192,6 +193,32 @@ def run_apply_local_revision_safe(
         return result, None
     except Exception as exc:
         return {}, str(exc)
+
+
+def build_local_failure_payload() -> dict[str, object]:
+    return {
+        "mode": "local",
+        "provisional_text": "翻译失败",
+    }
+
+
+def run_local_job_safe(
+    run_local_job_fn: Callable[..., dict[str, object]],
+    text: str,
+    source_lang: str,
+    target_lang: str,
+    topic: str,
+) -> tuple[dict[str, object], str | None]:
+    try:
+        payload = run_local_job_fn(
+            text=text,
+            source_lang=source_lang,
+            target_lang=target_lang,
+            topic=topic,
+        )
+        return payload, None
+    except Exception as exc:
+        return build_local_failure_payload(), str(exc)
 
 
 def _resolve_dot_path_with_found(payload: dict[str, object], path: str) -> tuple[bool, object]:
@@ -317,7 +344,11 @@ def resolve_input_text(
     return manual_text or "", meta
 
 
-def build_result_panel(payload: dict[str, object] | None) -> dict[str, object]:
+def build_result_panel(
+    payload: dict[str, object] | None,
+    revision_error: str | None = None,
+    local_run_error: str | None = None,
+) -> dict[str, object]:
     data = payload or {}
     mode = data.get("mode")
     local_payload = data
@@ -334,6 +365,8 @@ def build_result_panel(payload: dict[str, object] | None) -> dict[str, object]:
         "local_decision_reason": local_payload.get("decision_reason"),
         "pretrain_calibration_summary": data.get("calibration_summary"),
         "pretrain_improvement_rate": data.get("improvement_rate"),
+        "revision_writeback_error": revision_error,
+        "local_run_error": local_run_error,
     }
 
 
@@ -405,12 +438,15 @@ def main() -> None:
         st.session_state["last_source_text"] = effective_local_text
         st.session_state["last_topic"] = topic
         clear_chat_revision_state(st.session_state)
-        st.session_state["latest_payload"] = run_local_job(
+        payload, local_run_error = run_local_job_safe(
+            run_local_job_fn=run_local_job,
             text=effective_local_text,
             source_lang=source_lang,
             target_lang=target_lang,
             topic=topic,
         )
+        st.session_state["latest_payload"] = payload
+        st.session_state["local_run_error"] = local_run_error
 
     train_text = st.sidebar.text_area("预训练文本", value="车站")
     train_file = st.sidebar.file_uploader(
@@ -459,7 +495,13 @@ def main() -> None:
     with st.sidebar.expander("页面详情与状态", expanded=False):
         st.json(detail_payload)
     with st.sidebar.expander("结果详情（技术）", expanded=False):
-        st.json(build_result_panel(latest_payload))
+        st.json(
+            build_result_panel(
+                latest_payload,
+                revision_error=st.session_state.get("revision_error"),
+                local_run_error=st.session_state.get("local_run_error"),
+            )
+        )
 
     st.subheader("翻译结果")
     provisional_text = str((latest_payload or {}).get("provisional_text") or "")
@@ -468,9 +510,7 @@ def main() -> None:
     payload_context = build_payload_context(latest_payload)
     display_state = decide_final_output_display(latest_payload, final_output, final_output_context)
     has_provisional = bool(provisional_text.strip())
-
-    if st.session_state.get("revision_error"):
-        st.error(f"修正写回失败：{st.session_state['revision_error']}")
+    local_run_failed = bool(st.session_state.get("local_run_error"))
 
     if display_state["show_final_output"]:
         revision_text = str(st.session_state.get("last_revision_text") or "")
@@ -482,6 +522,9 @@ def main() -> None:
     elif display_state["show_provisional"] and has_provisional:
         with st.chat_message("assistant"):
             st.write(provisional_text)
+
+        if local_run_failed and provisional_text == "翻译失败":
+            return
 
         confirm_col, revise_col = st.columns(2)
         confirm_clicked = confirm_col.button("确认", key="confirm_result")
