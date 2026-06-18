@@ -585,7 +585,7 @@ git commit -m "feat: add searchable help and connector inbox"
 - Create: `tests/test_runtime_manifest.py`
 - Modify: `tests/test_optional_runtime_installer.py`
 
-- [ ] **Step 1: Write failing manifest and script contract tests**
+- [x] **Step 1: Write failing manifest and script contract tests**
 
 ```python
 def test_runtime_manifest_requires_all_ocr_languages():
@@ -600,19 +600,19 @@ def test_runtime_manifest_rejects_non_e_development_root():
         RuntimeManifest.default().validate_development_root(Path("C:/runtime"))
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```powershell
 E:\Ana\python.exe -m pytest -q tests\test_runtime_manifest.py tests\test_optional_runtime_installer.py
 ```
 
-- [ ] **Step 3: Implement verified download manifest and script parameters**
+- [x] **Step 3: Implement verified download manifest and script parameters**
 
 Add `-RuntimeRoot`, `-DownloadTesseract`, `-DownloadComet`, `-DownloadModel`, and `-OfflineCache`. In development mode reject roots outside E. In installed mode accept the installer-supplied `{app}\runtime` root. Every download uses HTTPS, expected size/SHA256, `.partial` files, and atomic rename.
 
 The generated `runtime-settings.json` contains relative paths when under the install root so moving a portable directory does not retain stale absolute paths.
 
-- [ ] **Step 4: Verify script dry-run and commit**
+- [x] **Step 4: Verify script dry-run and commit**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\install_optional_runtimes.ps1 -RuntimeRoot 'E:\Cn-Jp Translate\.runtime' -WhatIf
