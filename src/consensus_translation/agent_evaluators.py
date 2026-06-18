@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -281,6 +283,39 @@ class ExternalCometTranslationEvaluator:
         )
 
     @staticmethod
+    def _cache_environment(cache_root: Path) -> dict[str, str]:
+        huggingface_home = cache_root / "huggingface"
+        huggingface_hub = huggingface_home / "hub"
+        updates = {
+            "HF_HOME": str(huggingface_home),
+            "HUGGINGFACE_HUB_CACHE": str(huggingface_hub),
+            "TRANSFORMERS_CACHE": str(huggingface_hub),
+            "TORCH_HOME": str(cache_root / "torch"),
+            "XDG_CACHE_HOME": str(cache_root / "xdg-cache"),
+            "HF_HUB_DISABLE_XET": "1",
+            "HF_HUB_DISABLE_SYMLINKS_WARNING": "1",
+        }
+        for key, value in updates.items():
+            if key.endswith("_DISABLE_XET") or key.endswith("_WARNING"):
+                continue
+            Path(value).mkdir(parents=True, exist_ok=True)
+        return updates
+
+    @staticmethod
+    @contextmanager
+    def _temporary_environment(updates: dict[str, str]):
+        previous = {key: os.environ.get(key) for key in updates}
+        os.environ.update(updates)
+        try:
+            yield
+        finally:
+            for key, value in previous.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+
+    @staticmethod
     def _single_line(text: str) -> str:
         return " ".join(text.splitlines()).strip()
 
@@ -340,8 +375,12 @@ class ExternalCometTranslationEvaluator:
                 command.extend(
                     ["--model_storage_path", str(self.model_storage_path)]
                 )
+                environment = self._cache_environment(self.model_storage_path)
+            else:
+                environment = {}
             try:
-                completed = self._runner(command, self.timeout)
+                with self._temporary_environment(environment):
+                    completed = self._runner(command, self.timeout)
             except FileNotFoundError as exc:
                 raise RuntimeError(
                     f"COMET command not found: {self.command}"

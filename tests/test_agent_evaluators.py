@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import sys
 
@@ -187,3 +188,53 @@ def test_external_comet_evaluator_calls_sidecar_and_parses_json(tmp_path):
     assert captured["source_text"] == "source line\n"
     assert result.score == 0.81
     assert result.metrics == {"comet_score": 0.81}
+
+
+def test_external_comet_evaluator_sets_cache_environment(tmp_path, monkeypatch):
+    monkeypatch.setenv("HF_HOME", str(tmp_path / "previous-hf"))
+    captured = {}
+
+    def fake_runner(command, timeout):
+        captured["hf_home"] = os.environ.get("HF_HOME")
+        captured["hub_cache"] = os.environ.get("HUGGINGFACE_HUB_CACHE")
+        captured["transformers_cache"] = os.environ.get("TRANSFORMERS_CACHE")
+        captured["torch_home"] = os.environ.get("TORCH_HOME")
+        captured["xet_disabled"] = os.environ.get("HF_HUB_DISABLE_XET")
+        output_path = Path(command[command.index("--to_json") + 1])
+        output_path.write_text(
+            '{"candidate.txt": [{"COMET": 0.82}]}',
+            encoding="utf-8",
+        )
+
+        class Result:
+            returncode = 0
+            stdout = "Predictions saved"
+            stderr = ""
+
+        return Result()
+
+    model_cache = tmp_path / "models"
+    evaluator = ExternalCometTranslationEvaluator(
+        model_storage_path=model_cache,
+        runner=fake_runner,
+    )
+
+    result = evaluator.evaluate(
+        EvaluationRequest(
+            source_text="source",
+            candidate_text="candidate",
+            reference_text="reference",
+            source_lang="en",
+            target_lang="zh",
+            topic="general",
+            round_index=1,
+        )
+    )
+
+    assert captured["hf_home"] == str(model_cache / "huggingface")
+    assert captured["hub_cache"] == str(model_cache / "huggingface" / "hub")
+    assert captured["transformers_cache"] == str(model_cache / "huggingface" / "hub")
+    assert captured["torch_home"] == str(model_cache / "torch")
+    assert captured["xet_disabled"] == "1"
+    assert os.environ["HF_HOME"] == str(tmp_path / "previous-hf")
+    assert result.score == 0.82

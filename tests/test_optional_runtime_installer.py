@@ -26,4 +26,16 @@ def test_optional_runtime_installer_is_e_drive_scoped_and_reproducible():
     assert ".partial" in source
     assert "Get-FileHash" in source
     assert "expected_sha256" in source
+    assert "PIP_CACHE_DIR" in source
+    assert "--resume-retries" in source
+    assert "CONDA_NO_PLUGINS" in source
+    assert "CONDA_NUMBER_CHANNEL_NOTICES" in source
+    assert "CONDA_SOLVER" in source
+    assert "CONDA_PKGS_DIRS" in source
+    assert "CONDA_ENVS_PATH" in source
+    assert "HF_HOME" in source
+    assert "TORCH_HOME" in source
+    assert "download-comet-model.py" in source
+    assert "snapshot_download" in source
+    assert "max_workers=1" in source
     assert "comet-models" in source

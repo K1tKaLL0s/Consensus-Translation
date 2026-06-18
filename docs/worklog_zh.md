@@ -12,9 +12,11 @@
 2. E 盘运行时
    - 新增 `install_optional_runtimes.ps1`，强制下载、环境和模型缓存位于 E 盘。
    - Tesseract 5.5.0 安装包已下载至 `E:\Cn-Jp Translate\.runtime\downloads`，并通过 `E:\7-Zip\7z.exe` 解包至项目 `.runtime\Tesseract-OCR`。
+   - `eng/jpn/chi_sim/chi_tra` 语言包已下载至 E 盘 `.runtime\Tesseract-OCR\tessdata`，生成图片 OCR fixture 已通过。
    - 真实 CLI 与 `OcrImageInputPlugin` 均识别测试图片为 `HELLO 123`，无 warning。
+   - COMET Python 3.11 sidecar、`Unbabel/wmt22-comet-da` 模型和底层 Hugging Face/Transformers/Torch 缓存均固定在 E 盘 `.runtime\comet-*` 下；样例评分验证通过。
    - Windows 安装器曾忽略目标路径并在 C 盘生成副本；因高权限用量限制，官方卸载器清理仍待权限恢复后完成。项目 runtime settings 已显式固定使用 E 盘副本。
-   - `jpn/chi_sim/chi_tra` 语言数据和 COMET Python/model 下载被当前网络权限用量限制拦截，未伪报完成。
+   - 新增 `scripts/verify_optional_runtimes.py`，当前完整验证结果为 `runtime verification: ok`，报告写入 `.runtime/runtime-verification.json`。
 3. TDD 记录
    - 新增运行时发现、外部 COMET CLI、训练/验证传递、项目持久化、UI 控件、数据上传门和安装脚本测试。
    - 当前相关聚焦回归：`50 passed`、`45 passed` 等批次均通过。

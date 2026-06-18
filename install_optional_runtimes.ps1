@@ -257,6 +257,23 @@ if ($WhatIfPreference) {
 }
 
 New-Item -ItemType Directory -Force -Path $RuntimeRoot, $downloadsRoot | Out-Null
+$runtimeTemp = Join-Path $RuntimeRoot "temp"
+$pipCache = Join-Path $RuntimeRoot "pip-cache-comet"
+$condaPkgs = Join-Path $RuntimeRoot "conda-pkgs"
+$condaEnvs = Join-Path $RuntimeRoot "conda-envs"
+New-Item -ItemType Directory -Force -Path $runtimeTemp, $pipCache, $cometModels, $condaPkgs, $condaEnvs | Out-Null
+$env:TEMP = $runtimeTemp
+$env:TMP = $runtimeTemp
+$env:PIP_CACHE_DIR = $pipCache
+$env:CONDA_NO_PLUGINS = "true"
+$env:CONDA_NUMBER_CHANNEL_NOTICES = "0"
+$env:CONDA_SOLVER = "classic"
+$env:CONDA_PKGS_DIRS = $condaPkgs
+$env:CONDA_ENVS_PATH = $condaEnvs
+$env:HF_HOME = Join-Path $cometModels "huggingface"
+$env:TORCH_HOME = Join-Path $cometModels "torch"
+$env:HF_HUB_DISABLE_XET = "1"
+$env:HF_HUB_DISABLE_SYMLINKS_WARNING = "1"
 
 if ($shouldDownloadTesseract) {
     $installerDownload = $RuntimeManifest.downloads | Where-Object { $_.id -eq "tesseract-installer" } | Select-Object -First 1
@@ -294,8 +311,8 @@ if ($shouldDownloadComet) {
         }
     }
 
-    & $cometPython -m pip install --upgrade pip
-    & $cometPython -m pip install $RuntimeManifest.comet_package
+    & $cometPython -m pip install --resume-retries 5 --timeout 120 --upgrade pip
+    & $cometPython -m pip install --resume-retries 5 --timeout 120 $RuntimeManifest.comet_package
     if ($LASTEXITCODE -ne 0) {
         throw "COMET package installation failed"
     }
@@ -309,17 +326,42 @@ if ($shouldDownloadComet) {
 
 if ($shouldDownloadModel) {
     New-Item -ItemType Directory -Force -Path $cometModels | Out-Null
-    $env:HF_HOME = Join-Path $cometModels "huggingface"
-    $env:TORCH_HOME = Join-Path $cometModels "torch"
     $cometPython = Join-Path $cometEnv "python.exe"
     if (-not (Test-Path -LiteralPath $cometPython)) {
         throw "COMET Python is missing; run with -DownloadComet before -DownloadModel"
     }
+    $modelScript = Join-Path $runtimeTemp "download-comet-model.py"
     $downloadCode = @"
-from comet import download_model
-print(download_model("$($RuntimeManifest.comet_model)", saving_directory=r"$cometModels"))
+import time
+from pathlib import Path
+from huggingface_hub import snapshot_download
+
+MODEL = "$($RuntimeManifest.comet_model)"
+TARGET = r"$cometModels"
+
+last_error = None
+for attempt in range(1, 6):
+    try:
+        model_path = Path(snapshot_download(
+            repo_id=MODEL,
+            cache_dir=TARGET,
+            max_workers=1,
+        ))
+        checkpoint = model_path / "checkpoints" / "model.ckpt"
+        if not checkpoint.is_file():
+            raise RuntimeError(f"COMET checkpoint not found: {checkpoint}")
+        print(checkpoint)
+        break
+    except Exception as exc:
+        last_error = exc
+        print(f"download attempt {attempt} failed: {exc}")
+        if attempt < 5:
+            time.sleep(min(60, attempt * 10))
+else:
+    raise last_error
 "@
-    & $cometPython -c $downloadCode
+    Set-Content -LiteralPath $modelScript -Encoding UTF8 -Value $downloadCode
+    & $cometPython $modelScript
     if ($LASTEXITCODE -ne 0) {
         throw "COMET model download failed"
     }

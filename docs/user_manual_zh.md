@@ -8,7 +8,7 @@
 powershell -ExecutionPolicy Bypass -File .\install_optional_runtimes.ps1
 ```
 
-脚本会拒绝非 E 盘路径，并在 `.runtime` 下安装 Tesseract、Python 3.11 COMET sidecar 与 COMET 模型缓存。可分别使用 `-SkipTesseract`、`-SkipComet`、`-SkipCometModel` 跳过组件。
+脚本会拒绝非 E 盘开发路径，并在 `.runtime` 下安装 Tesseract、Python 3.11 COMET sidecar 与 COMET 模型缓存。按需使用 `-DownloadTesseract`、`-DownloadComet`、`-DownloadModel` 下载对应组件；正式安装包的 installed mode 会使用用户选择的安装/数据目录。
 
 2. 桌面端运行设置：
 
@@ -24,7 +24,11 @@ powershell -ExecutionPolicy Bypass -File .\install_optional_runtimes.ps1
 - 开启后，训练集才会加入远端 provider prompt；每次调用前仍必须通过 `Confirm Remote Calls`。
 - 预检列表中的 `scopes` 明确显示本次远端调用涉及 source、training、candidate 或 validation。
 
-当前机器已通过 E 盘 Tesseract 5.5.0 的真实英文 OCR smoke。日文/中文语言模型与 COMET 安装需在下载权限可用时重新运行脚本。
+当前机器已完成 E 盘运行时验证：Tesseract 5.5.0、`eng/jpn/chi_sim/chi_tra` 语言包、生成图片 OCR fixture、COMET CLI、`Unbabel/wmt22-comet-da` 模型加载与本地样例评分均通过。验证命令：
+
+```powershell
+E:\Ana\python.exe scripts\verify_optional_runtimes.py --runtime-root 'E:\Cn-Jp Translate\.runtime'
+```
 
 目标机无窗口诊断命令：
 

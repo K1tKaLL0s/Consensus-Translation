@@ -629,7 +629,7 @@ git commit -m "feat: add verified E-drive runtime installer"
 - Create: `tests/test_verify_optional_runtimes.py`
 - Modify: `docs/user_manual_zh.md`
 
-- [ ] **Step 1: Write a failing verifier test**
+- [x] **Step 1: Write a failing verifier test**
 
 ```python
 def test_verifier_reports_missing_japanese_language(tmp_path):
@@ -641,11 +641,11 @@ def test_verifier_reports_missing_japanese_language(tmp_path):
     assert result.missing_ocr_languages == ("jpn", "chi_sim", "chi_tra")
 ```
 
-- [ ] **Step 2: Implement the verifier**
+- [x] **Step 2: Implement the verifier**
 
 The verifier runs Tesseract `--version`/`--list-langs`, OCRs generated English/Japanese/Chinese fixture images, runs `comet-score --help`, loads the configured COMET model from the E cache, scores one local source/hypothesis/reference sample, and writes `.runtime/runtime-verification.json`.
 
-- [ ] **Step 3: Download into E and verify**
+- [x] **Step 3: Download into E and verify**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\install_optional_runtimes.ps1 -RuntimeRoot 'E:\Cn-Jp Translate\.runtime' -DownloadTesseract -DownloadComet -DownloadModel
@@ -654,7 +654,7 @@ E:\Ana\python.exe scripts\verify_optional_runtimes.py --runtime-root 'E:\Cn-Jp T
 
 Expected: all four OCR languages present; OCR fixtures pass; COMET CLI/model/sample score pass. Network or registry failures must be retried with explicit authorization, never redirected to C.
 
-- [ ] **Step 4: Run tests and commit source evidence**
+- [x] **Step 4: Run tests and commit source evidence**
 
 ```powershell
 E:\Ana\python.exe -m pytest -q tests\test_verify_optional_runtimes.py tests\test_agent_evaluators.py
