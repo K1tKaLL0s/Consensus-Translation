@@ -28,7 +28,7 @@ Each package ends in runnable software and a focused commit. Do not begin a late
 - Test: `tests/test_agent_runtime.py`
 - Test: `tests/test_workflows.py`
 
-- [ ] **Step 1: Write the failing runtime layout tests**
+- [x] **Step 1: Write the failing runtime layout tests**
 
 Add tests that define the public API before implementation:
 
@@ -74,7 +74,7 @@ def test_runtime_layout_reads_legacy_project_runtime_settings(tmp_path):
     assert layout.runtime_root == runtime_root.resolve()
 ```
 
-- [ ] **Step 2: Run the focused tests and verify RED**
+- [x] **Step 2: Run the focused tests and verify RED**
 
 Run:
 
@@ -85,7 +85,7 @@ E:\Ana\python.exe -m pytest -q tests\test_agent_runtime.py
 
 Expected: collection fails because `RuntimeLayout` is not defined.
 
-- [ ] **Step 3: Implement `RuntimeLayout` and route controller resolution through it**
+- [x] **Step 3: Implement `RuntimeLayout` and route controller resolution through it**
 
 Implement an immutable dataclass in `agent_runtime.py`:
 
@@ -144,7 +144,7 @@ class RuntimeLayout:
 
 Replace controller calls to `_project_root()` for runtime commands with one injected `RuntimeLayout`. Preserve the old resolver functions as compatibility wrappers around the layout.
 
-- [ ] **Step 4: Add automatic pytest user-data isolation**
+- [x] **Step 4: Add automatic pytest user-data isolation**
 
 Create `tests/conftest.py`:
 
@@ -163,7 +163,7 @@ def pytest_configure(config):
 
 Use a session fixture instead if pytest ordering shows imports occurring before `pytest_configure`; the invariant is that `E:\Ana\python.exe -m pytest -q` never touches the real user profile.
 
-- [ ] **Step 5: Run GREEN tests**
+- [x] **Step 5: Run GREEN tests**
 
 Run:
 
@@ -173,7 +173,7 @@ E:\Ana\python.exe -m pytest -q tests\test_agent_runtime.py tests\test_workflows.
 
 Expected: all selected tests pass and no `C:\Users\<username>\AppData\Local\ConsensusTranslation` access occurs.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add tests/conftest.py tests/test_agent_runtime.py src/consensus_translation/agent_runtime.py src/consensus_translation/desktop_agent_app.py
