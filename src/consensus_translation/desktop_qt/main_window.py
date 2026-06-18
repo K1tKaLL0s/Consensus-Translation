@@ -4,21 +4,37 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
+    QListWidget,
     QMainWindow,
+    QPlainTextEdit,
+    QPushButton,
     QSizePolicy,
     QStackedWidget,
     QStatusBar,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
 
+from consensus_translation.desktop_qt.application_service import (
+    DesktopApplicationService,
+)
 from consensus_translation.desktop_qt.navigation import (
     NAVIGATION_LABELS,
     NavigationList,
 )
+from consensus_translation.desktop_qt.pages.diagnostics import DiagnosticsPage
+from consensus_translation.desktop_qt.pages.home import HomePage
+from consensus_translation.desktop_qt.pages.lexicon import LexiconPage
+from consensus_translation.desktop_qt.pages.projects import ProjectsPage
+from consensus_translation.desktop_qt.pages.providers import ProvidersPage
+from consensus_translation.desktop_qt.pages.workbench import WorkbenchPage
 
 
 class PlaceholderPage(QWidget):
@@ -43,39 +59,9 @@ class PlaceholderPage(QWidget):
         layout.addStretch(1)
 
 
-class HomePage(PlaceholderPage):
-    page_title = "首页"
-    page_description = "查看当前项目状态、最近任务、运行时健康和下一步操作入口。"
-
-
-class WorkbenchPage(PlaceholderPage):
-    page_title = "翻译工作台"
-    page_description = "输入文本或文件，配置语言、题材、候选引擎、评估器和人工确认流程。"
-
-
-class ProjectsPage(PlaceholderPage):
-    page_title = "项目与任务"
-    page_description = "管理项目配置、历史运行、待确认任务和导出记录。"
-
-
-class LexiconPage(PlaceholderPage):
-    page_title = "词库与风格"
-    page_description = "维护领域词库、风格偏好、人工确认后的术语写回和迁移工具。"
-
-
 class ConnectorsPage(PlaceholderPage):
     page_title = "输入连接器"
     page_description = "接入剪贴板、OCR、文件夹收件箱和第三方工具导出的文本。"
-
-
-class ProvidersPage(PlaceholderPage):
-    page_title = "Provider 与评估器"
-    page_description = "配置本地/远端候选翻译 provider、成本预算、API 凭据和评估器。"
-
-
-class DiagnosticsPage(PlaceholderPage):
-    page_title = "诊断与运行时"
-    page_description = "检查安装目录、数据目录、Tesseract、COMET、provider 合同和本地冒烟测试。"
 
 
 class HelpPage(PlaceholderPage):
@@ -83,7 +69,7 @@ class HelpPage(PlaceholderPage):
     page_description = "搜索快速开始、连接器、provider、运行时排障、隐私和许可说明。"
 
 
-PAGE_TYPES: tuple[type[PlaceholderPage], ...] = (
+PAGE_TYPES: tuple[type[QWidget], ...] = (
     HomePage,
     WorkbenchPage,
     ProjectsPage,
@@ -103,8 +89,12 @@ class MainWindow(QMainWindow):
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
-        self.controller = controller
         self.data_root = Path(data_root).resolve() if data_root else Path.cwd() / "data"
+        self.service = DesktopApplicationService.from_existing(
+            controller,
+            data_root=self.data_root,
+        )
+        self.controller = self.service
         self._pages: dict[str, QWidget] = {}
 
         self.setWindowTitle("共识翻译 Agent")
@@ -133,6 +123,30 @@ class MainWindow(QMainWindow):
     def current_page(self) -> QWidget:
         return self._stack.currentWidget()
 
+    def visible_text(self) -> str:
+        parts: list[str] = [self.windowTitle()]
+        for widget in self.findChildren(QWidget):
+            if isinstance(widget, QLineEdit):
+                if widget.echoMode() == QLineEdit.Normal:
+                    parts.append(widget.text())
+                continue
+            if isinstance(widget, (QTextEdit, QPlainTextEdit)):
+                parts.append(widget.toPlainText())
+                continue
+            if isinstance(widget, QListWidget):
+                for index in range(widget.count()):
+                    parts.append(widget.item(index).text())
+                continue
+            if isinstance(widget, QComboBox):
+                parts.append(widget.currentText())
+                continue
+            if isinstance(widget, QCheckBox):
+                parts.append(widget.text())
+                continue
+            if isinstance(widget, (QLabel, QPushButton)):
+                parts.append(widget.text())
+        return "\n".join(part for part in parts if part)
+
     def _build_ui(self) -> None:
         central = QWidget(self)
         root_layout = QHBoxLayout(central)
@@ -153,7 +167,10 @@ class MainWindow(QMainWindow):
         self._stack = QStackedWidget(self)
         self._stack.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         for label, page_type in zip(NAVIGATION_LABELS, PAGE_TYPES, strict=True):
-            page = page_type(self)
+            if issubclass(page_type, PlaceholderPage):
+                page = page_type(self)
+            else:
+                page = page_type(self.service, self)
             self._pages[label] = page
             self._stack.addWidget(page)
         content_layout.addWidget(self._stack)

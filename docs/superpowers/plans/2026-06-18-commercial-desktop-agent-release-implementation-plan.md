@@ -461,7 +461,7 @@ git commit -m "feat: add PySide6 desktop application shell"
 - Modify: `src/consensus_translation/desktop_qt/main_window.py`
 - Test: `tests/test_desktop_qt_workflows.py`
 
-- [ ] **Step 1: Write failing UI workflow tests with a real controller boundary**
+- [x] **Step 1: Write failing UI workflow tests with a real controller boundary**
 
 ```python
 def test_workbench_translates_and_renders_result(qtbot, qt_controller):
@@ -487,7 +487,7 @@ def test_provider_save_never_displays_secret(qtbot, qt_controller):
     assert page.api_key_input.text() == ""
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```powershell
 $env:QT_QPA_PLATFORM = 'offscreen'
@@ -496,17 +496,17 @@ E:\Ana\python.exe -m pytest -q tests\test_desktop_qt_workflows.py
 
 Expected: missing pages/service APIs.
 
-- [ ] **Step 3: Implement an application service, not direct database UI access**
+- [x] **Step 3: Implement an application service, not direct database UI access**
 
 `DesktopApplicationService` wraps `DesktopAgentController` and exposes typed methods for translate, preview/confirm remote calls, profiles, recent files, runs, pending lexicon events, provider save/load/smoke, diagnostics, local acceptance, and artifact export. UI pages emit Qt signals and call only this service.
 
-- [ ] **Step 4: Implement functional pages**
+- [x] **Step 4: Implement functional pages**
 
 The workbench supports text/file input, languages, topic, mode, training/validation files, evaluator, candidate/result panes, preflight confirmation, run confirmation, and artifact export. Project/task, lexicon, provider, and diagnostic pages load real controller data and show empty/error states with recovery actions.
 
 Remote smoke uses a static/mock provider fixture when no real credential is configured; no test or default button initiates a live remote call.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```powershell
 $env:QT_QPA_PLATFORM = 'offscreen'
