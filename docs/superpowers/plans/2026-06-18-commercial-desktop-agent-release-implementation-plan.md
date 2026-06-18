@@ -285,7 +285,7 @@ git commit -m "fix: separate installed and developer diagnostics"
 - Modify: `src/consensus_translation/workflows.py`
 - Modify: `README.md`
 
-- [ ] **Step 1: Write failing release-profile tests**
+- [x] **Step 1: Write failing release-profile tests**
 
 ```python
 from consensus_translation.engine_registry import EngineRegistry
@@ -306,7 +306,7 @@ def test_research_profile_marks_nllb_as_user_download():
     assert entry.requires_license_acceptance is True
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```powershell
 E:\Ana\python.exe -m pytest -q tests\test_engine_registry.py
@@ -314,7 +314,7 @@ E:\Ana\python.exe -m pytest -q tests\test_engine_registry.py
 
 Expected: import failure for `engine_registry`.
 
-- [ ] **Step 3: Implement registry and commercial-safe workflow selection**
+- [x] **Step 3: Implement registry and commercial-safe workflow selection**
 
 Define:
 
@@ -364,11 +364,11 @@ class EngineRegistry:
 
 Keep `LocalEngineB` available only when profile `research` is explicitly selected. Implement an OPUS direct candidate and an OPUS English-pivot candidate for `commercial-safe`, de-duplicating identical outputs before MDWC.
 
-- [ ] **Step 4: Add release documents with exact current boundaries**
+- [x] **Step 4: Add release documents with exact current boundaries**
 
 Use Apache-2.0 project text in `LICENSE`. `MODEL_LICENSES.md` must list each actual model ID and its license; it must state that `facebook/nllb-200-distilled-600M` is not in commercial bundles. `PRIVACY.md` must state local defaults, explicit remote data scopes, DPAPI credential storage, and no telemetry unless added and disclosed later.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```powershell
 E:\Ana\python.exe -m pytest -q tests\test_engine_registry.py tests\test_engines.py tests\test_workflows.py

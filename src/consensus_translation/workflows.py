@@ -5,7 +5,12 @@ from pathlib import Path
 from consensus_translation.config import AppSettings
 from consensus_translation.contracts import StageStatus, TranslationJobContract
 from consensus_translation.domain_signals import extract_domain_signals
-from consensus_translation.engines import LocalEngineA, LocalEngineB
+from consensus_translation.engine_registry import EngineRegistry
+from consensus_translation.engines import (
+    LocalEngineA,
+    LocalEngineB,
+    ResearchNllbEngine,
+)
 from consensus_translation.evaluation import evaluate_translation
 from consensus_translation.lexicon import LexiconRepo, RevisionPayload
 from consensus_translation.merging import merge_sentences
@@ -83,6 +88,7 @@ def run_local_job(
     topic: str | None,
     audit_path: str | Path | None = None,
     resume_from_stage: StageStatus | str | None = None,
+    release_profile: str = "commercial-safe",
 ) -> dict[str, object]:
     effective_log_level = apply_minimum_log_level(LOGGER)
     LOGGER.info(
@@ -119,8 +125,14 @@ def run_local_job(
 
     update_stage(StageStatus.INGEST, 0.05)
 
+    normalized_profile = release_profile.strip().lower()
+    EngineRegistry.default().enabled_for(normalized_profile)
     engine_a = LocalEngineA()
-    engine_b = LocalEngineB()
+    engine_b = (
+        ResearchNllbEngine()
+        if normalized_profile == "research"
+        else LocalEngineB()
+    )
 
     update_stage(StageStatus.SEGMENT, 0.2)
     update_stage(StageStatus.ENGINE, 0.45)
@@ -139,15 +151,22 @@ def run_local_job(
         contract.stage_status.error_message = str(engine_errors)
         raise RuntimeError("both engines failed")
 
+    candidate_deduplicated = False
     if bool(engine_a_result["ok"]) and bool(engine_b_result["ok"]):
         a_text = str(engine_a_result["text"])
         b_text = str(engine_b_result["text"])
         a_conf = float(engine_a_result["confidence"])
         b_conf = float(engine_b_result["confidence"])
-        merged = merge_sentences(a_text, b_text, a_conf, b_conf)
-        final_text = merged.final_text
-        decision_reason = merged.decision_reason
-        merge_trace = merged.merge_trace
+        candidate_deduplicated = bool(a_text) and a_text.strip() == b_text.strip()
+        if candidate_deduplicated:
+            final_text = a_text
+            decision_reason = "engine-duplicate-candidate"
+            merge_trace = ["deduplicated:engine_b"]
+        else:
+            merged = merge_sentences(a_text, b_text, a_conf, b_conf)
+            final_text = merged.final_text
+            decision_reason = merged.decision_reason
+            merge_trace = merged.merge_trace
         LOGGER.debug(
             "engine outputs captured",
             extra={
@@ -193,7 +212,9 @@ def run_local_job(
 
     update_stage(StageStatus.MDWC, 0.85)
 
-    if bool(engine_a_result["ok"]) and bool(engine_b_result["ok"]):
+    if candidate_deduplicated:
+        winner = left
+    elif bool(engine_a_result["ok"]) and bool(engine_b_result["ok"]):
         winner = choose_candidate(left, right, settings.mdwc_weights)
     elif bool(engine_a_result["ok"]):
         winner = left
@@ -204,7 +225,11 @@ def run_local_job(
     winner_score = min(winner_score + domain_adjustment, 1.0)
     needs_review = winner_score < 0.55
 
-    if bool(engine_a_result["ok"]) and bool(engine_b_result["ok"]):
+    if (
+        bool(engine_a_result["ok"])
+        and bool(engine_b_result["ok"])
+        and not candidate_deduplicated
+    ):
         winner_text = a_text if winner is left else b_text
         if not final_text:
             final_text = winner_text
@@ -216,6 +241,8 @@ def run_local_job(
 
     result: dict[str, object] = {
         "mode": "local",
+        "release_profile": normalized_profile,
+        "candidate_deduplicated": candidate_deduplicated,
         "source_lang": source_lang,
         "target_lang": target_lang,
         "topic": topic,
