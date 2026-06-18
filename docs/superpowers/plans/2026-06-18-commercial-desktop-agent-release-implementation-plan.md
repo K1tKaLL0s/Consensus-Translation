@@ -671,7 +671,7 @@ git commit -m "test: verify OCR and COMET runtime capabilities"
 - Modify: `src/consensus_translation/agent_packaging.py`
 - Test: `tests/test_desktop_qt_packaging.py`
 
-- [ ] **Step 1: Write failing packaging tests**
+- [x] **Step 1: Write failing packaging tests**
 
 ```python
 def test_qt_spec_packages_help_and_release_documents():
@@ -682,7 +682,7 @@ def test_qt_spec_packages_help_and_release_documents():
     assert "console=False" in spec
 ```
 
-- [ ] **Step 2: Verify RED, implement spec, then build**
+- [x] **Step 2: Verify RED, implement spec, then build**
 
 ```powershell
 E:\Ana\python.exe -m pytest -q tests\test_desktop_qt_packaging.py
@@ -691,7 +691,7 @@ powershell -ExecutionPolicy Bypass -File .\build_desktop_qt.ps1
 
 The spec uses the Qt application module, includes help/license docs, excludes Streamlit/Tkinter-only runtime where safe, and keeps heavy translation/COMET dependencies external. The build script runs packaging preflight and writes only under workspace `build`/`dist`.
 
-- [ ] **Step 3: Run packaged installed diagnostics and smoke**
+- [x] **Step 3: Run packaged installed diagnostics and smoke**
 
 Use `Start-Process -Wait -WindowStyle Hidden` for the windowed executable:
 
@@ -701,7 +701,7 @@ Start-Process -FilePath $exe -ArgumentList '--diagnostics','--diagnostics-mode',
 Start-Process -FilePath $exe -ArgumentList '--local-smoke','--acceptance-dir','.acceptance\qt-packaged-smoke' -Wait -WindowStyle Hidden
 ```
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 ```powershell
 E:\Ana\python.exe -m pytest -q tests\test_desktop_qt_packaging.py tests\test_desktop_packaging.py

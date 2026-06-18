@@ -1269,13 +1269,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--project-id", default="default")
     args = parser.parse_args(argv)
 
-    if args.data_dir:
-        data_dir = Path(args.data_dir)
-        store_path = data_dir / "agent.sqlite3"
-        credentials_path = data_dir / "credentials.json"
-    else:
-        store_path = default_desktop_store_path()
-        credentials_path = default_desktop_credentials_path()
+    explicit_data_dir = Path(args.data_dir) if args.data_dir else None
 
     if args.local_smoke:
         controller = DesktopAgentController(project_id=args.project_id)
@@ -1292,8 +1286,6 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if result.ok else 2
 
     if args.diagnostics:
-        store = AgentRunStore(store_path)
-        credential_store = LocalCredentialStore(credentials_path)
         diagnostic_root = args.install_root or args.project_root or Path.cwd()
         diagnostic_mode = args.diagnostics_mode or (
             "installed" if getattr(sys, "frozen", False) else "developer"
@@ -1301,7 +1293,12 @@ def main(argv: list[str] | None = None) -> int:
         runtime_layout = RuntimeLayout.discover(
             project_root=args.project_root or diagnostic_root,
             install_root=args.install_root,
-            data_root=args.data_dir,
+            data_root=explicit_data_dir,
+        )
+        diagnostic_data_dir = explicit_data_dir or runtime_layout.data_root
+        store = AgentRunStore(diagnostic_data_dir / "agent.sqlite3")
+        credential_store = LocalCredentialStore(
+            diagnostic_data_dir / "credentials.json"
         )
         controller = DesktopAgentController(
             store=store,
@@ -1320,6 +1317,13 @@ def main(argv: list[str] | None = None) -> int:
         else:
             _ = diagnostic_report_payload(report)
         return 2 if report.overall_status == "error" else 0
+
+    if explicit_data_dir:
+        store_path = explicit_data_dir / "agent.sqlite3"
+        credentials_path = explicit_data_dir / "credentials.json"
+    else:
+        store_path = default_desktop_store_path()
+        credentials_path = default_desktop_credentials_path()
 
     store = AgentRunStore(store_path)
     app = create_desktop_app(
