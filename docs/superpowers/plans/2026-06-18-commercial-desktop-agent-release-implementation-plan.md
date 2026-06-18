@@ -388,7 +388,7 @@ git commit -m "feat: add commercial-safe engine profile and notices"
 - Create: `tests/test_desktop_qt_shell.py`
 - Create: `run_desktop_qt.ps1`
 
-- [ ] **Step 1: Add dependencies and failing offscreen shell test**
+- [x] **Step 1: Add dependencies and failing offscreen shell test**
 
 `requirements-qt.txt` contains exact compatible ranges:
 
@@ -419,7 +419,7 @@ def test_main_window_exposes_release_navigation(qtbot, tmp_path):
     ]
 ```
 
-- [ ] **Step 2: Install Qt packages into the E-drive Python and verify RED**
+- [x] **Step 2: Install Qt packages into the E-drive Python and verify RED**
 
 ```powershell
 E:\Ana\python.exe -m pip install -r requirements-qt.txt
@@ -429,17 +429,17 @@ E:\Ana\python.exe -m pytest -q tests\test_desktop_qt_shell.py
 
 Expected: import failure for `desktop_qt` before implementation.
 
-- [ ] **Step 3: Implement the shell**
+- [x] **Step 3: Implement the shell**
 
 Create one `QMainWindow` with a fixed-width navigation list, `QStackedWidget`, top project/status bar, status bar, and eight page placeholders represented by real QWidget subclasses. Apply a restrained Windows-native light/dark palette through Qt stylesheets; do not introduce image assets or a new brand identity.
 
 `create_application(argv)` must reuse an existing `QApplication` and set organization/application names for stable settings.
 
-- [ ] **Step 4: Add source launcher**
+- [x] **Step 4: Add source launcher**
 
 `run_desktop_qt.ps1` resolves `E:\Ana\python.exe`, sets `PYTHONPATH=src`, and runs `python -m consensus_translation.desktop_qt.application`; fallback lookup checks C before E if the configured interpreter is missing.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```powershell
 $env:QT_QPA_PLATFORM = 'offscreen'
