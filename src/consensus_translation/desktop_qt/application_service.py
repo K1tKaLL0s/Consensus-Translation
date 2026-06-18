@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from pathlib import Path
+import sys
 from typing import Iterable
 
 from consensus_translation.agent_credentials import LocalCredentialStore
@@ -188,10 +189,11 @@ class DesktopApplicationService:
         results = self.controller.smoke_test_providers(sample_text=sample_text)
         return format_provider_smoke_lines(results)
 
-    def run_diagnostics(self, mode: str = "developer") -> list[str]:
+    def run_diagnostics(self, mode: str | None = None) -> list[str]:
+        diagnostic_mode = mode or ("installed" if getattr(sys, "frozen", False) else "developer")
         report = self.controller.run_diagnostics(
             credential_store=self.credential_store,
-            mode=mode,
+            mode=diagnostic_mode,
         )
         return format_diagnostic_lines(report)
 

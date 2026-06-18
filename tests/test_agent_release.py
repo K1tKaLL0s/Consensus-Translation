@@ -113,7 +113,18 @@ def test_desktop_release_script_exists_and_invokes_release_module():
 
     assert "consensus_translation.agent_release" in script
     assert "build_desktop_qt.ps1" in script
+    assert "C:\\Python313\\python.exe" in script
+    assert "E:\\Ana\\python.exe" in script
+    assert script.index("C:\\Python313\\python.exe") < script.index(
+        "E:\\Ana\\python.exe"
+    )
+    assert "ConsensusTranslationAgent-Setup-full.exe" in script
     assert acceptance_script.lstrip().startswith("param(")
+    assert "C:\\Python313\\python.exe" in acceptance_script
+    assert "E:\\Ana\\python.exe" in acceptance_script
+    assert acceptance_script.index("C:\\Python313\\python.exe") < acceptance_script.index(
+        "E:\\Ana\\python.exe"
+    )
     assert "consensus_translation.agent_acceptance" in acceptance_script
     assert "--report-json" in acceptance_script
 
@@ -177,6 +188,8 @@ def test_installed_release_verifier_script_contract():
     assert "/VERYSILENT" in script
     assert "/DIR=" in script
     assert "/TASKS=desktopicon" in script
+    assert "Relocatable COMET wrapper missing" in script
+    assert "Non-relocatable COMET launcher should not be installed" in script
     assert "--diagnostics-mode" in script
     assert "--local-smoke" in script
     assert "GetFolderPath('Desktop')" in script

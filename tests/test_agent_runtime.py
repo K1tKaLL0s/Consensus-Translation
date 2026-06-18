@@ -32,7 +32,7 @@ def test_runtime_layout_uses_explicit_install_root(tmp_path):
         install_root / "runtime" / "Tesseract-OCR" / "tesseract.exe"
     ).resolve()
     assert layout.comet_command == (
-        install_root / "runtime" / "comet-env" / "Scripts" / "comet-score.exe"
+        install_root / "runtime" / "comet-score.cmd"
     ).resolve()
     assert layout.comet_model_root == (
         install_root / "runtime" / "comet-models"
@@ -52,7 +52,7 @@ def test_runtime_layout_reads_legacy_project_runtime_settings(tmp_path):
                     runtime_root / "Tesseract-OCR" / "tesseract.exe"
                 ),
                 "comet_command": str(
-                    runtime_root / "comet-env" / "Scripts" / "comet-score.exe"
+                    runtime_root / "comet-score.cmd"
                 ),
                 "comet_model_storage_path": str(runtime_root / "comet-models"),
             }
@@ -67,7 +67,7 @@ def test_runtime_layout_reads_legacy_project_runtime_settings(tmp_path):
         runtime_root / "Tesseract-OCR" / "tesseract.exe"
     ).resolve()
     assert layout.comet_command == (
-        runtime_root / "comet-env" / "Scripts" / "comet-score.exe"
+        runtime_root / "comet-score.cmd"
     ).resolve()
     assert layout.comet_model_root == (runtime_root / "comet-models").resolve()
 
@@ -109,8 +109,8 @@ def test_tesseract_runtime_falls_back_to_e_candidate(tmp_path, monkeypatch):
 
 
 def test_comet_runtime_uses_explicit_sidecar_command(tmp_path):
-    command = tmp_path / "comet-env" / "Scripts" / "comet-score.exe"
-    command.parent.mkdir(parents=True)
+    command = tmp_path / "comet-score.cmd"
+    command.parent.mkdir(parents=True, exist_ok=True)
     command.write_bytes(b"exe")
 
     resolved = resolve_comet_command(
@@ -123,7 +123,7 @@ def test_comet_runtime_uses_explicit_sidecar_command(tmp_path):
 
 
 def test_comet_model_cache_defaults_next_to_sidecar_environment(tmp_path):
-    command = tmp_path / "runtime" / "comet-env" / "Scripts" / "comet-score.exe"
+    command = tmp_path / "runtime" / "comet-score.cmd"
     command.parent.mkdir(parents=True)
     command.write_bytes(b"exe")
 

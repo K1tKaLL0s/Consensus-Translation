@@ -318,7 +318,7 @@ def _layout_from_runtime_root(runtime_root: str | Path) -> RuntimeLayout:
         runtime_root=runtime,
         data_root=install / "data",
         tesseract_command=runtime / "Tesseract-OCR" / "tesseract.exe",
-        comet_command=runtime / "comet-env" / "Scripts" / "comet-score.exe",
+        comet_command=runtime / "comet-score.cmd",
         comet_model_root=runtime / "comet-models",
     )
 

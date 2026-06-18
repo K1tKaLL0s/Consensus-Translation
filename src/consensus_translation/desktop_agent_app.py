@@ -392,6 +392,7 @@ class DesktopAgentController:
     def smoke_test_providers(
         self,
         sample_text: str = "hello",
+        allow_live_remote: bool = False,
     ) -> list[ProviderSmokeResult]:
         normalized_sample = sample_text.strip() or "hello"
         return [
@@ -402,6 +403,7 @@ class DesktopAgentController:
                 topic=self.config.topic,
                 sample_text=normalized_sample,
                 api_enabled=self.config.api_enabled,
+                allow_live_remote=allow_live_remote,
             )
             for provider in self.providers
         ]

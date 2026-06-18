@@ -1,14 +1,14 @@
 # 工作日志（2026-05-07 第二阶段推进与本地可投用验证）
 ## 三十二、商业/开源桌面版最终发布验证（2026-06-19）
 1. 最终构建产物
-   - Qt one-folder：`dist\ConsensusTranslationAgent\ConsensusTranslationAgent.exe`，大小 `7362638` 字节，SHA256 `4aa9aa1e85739475d8c3e75dffd60035930bc138c28e50e6fdbf689f7b8a499f`。
-   - Portable zip：`release\ConsensusTranslationAgent-2026.06.19-portable.zip`，大小 `61340633` 字节，SHA256 `6e6f0f42602caf2c73a25314307e276c3c38c263f3b8d918c76aadc5d1fe181f`。
-   - 标准安装包：`release\ConsensusTranslationAgent-Setup-standard.exe`，大小 `44041757` 字节，SHA256 `a928dc01b9617e3de581cfbd360a13c5e966365710dcb2b00225fbeb4255a8c0`。
-   - Full runtime 安装包：`release\ConsensusTranslationAgent-Setup-full.exe`，大小 `5909066` 字节，SHA256 `b6c516f541c10e378beb9d9f097c5221811bcb70bfffe7ddbdfe9e785d757880`。
-   - Full runtime 分卷：`release\ConsensusTranslationAgent-Setup-full-1.bin`，大小 `1916689825` 字节，SHA256 `acaff77d912c91b1194187eb20de11d22b14892f304ffcfa7b9fd34daddb2d8b`。
+   - Qt one-folder：`dist\ConsensusTranslationAgent\ConsensusTranslationAgent.exe`，大小 `7363035` 字节，SHA256 `f87c17d501ce6d0fd1867c22c1811b5043d4e6457d82b55f90923c3c1f933024`。
+   - Portable zip：`release\ConsensusTranslationAgent-2026.06.19-portable.zip`，大小 `61342853` 字节，SHA256 `00c7230a2376a141028dfb12f7679b99783f98377a9a93c3dd4a078b93cb4778`。
+   - 标准安装包：`release\ConsensusTranslationAgent-Setup-standard.exe`，大小 `44050887` 字节，SHA256 `f1a7bcd35d17175a36be1fd92c9e01e1edbb24246246ef72e0beff5468ddfad9`。
+   - Full runtime 安装包：`release\ConsensusTranslationAgent-Setup-full.exe`，大小 `5906539` 字节，SHA256 `ef677563f67e627ed1325c012f486e517f78af989e6b05f056312ed950aada2d`。
+   - Full runtime 分卷：`release\ConsensusTranslationAgent-Setup-full-1.bin`，大小 `1916638828` 字节，SHA256 `a429496fcc62fbc8fbab3915680fc4c7d61d334fd985c52cfd46f61bb7dd992a`。
    - Release manifest：`release\ConsensusTranslationAgent-2026.06.19-portable\release-manifest.json`，已记录 commercial-safe profile、exe、zip、standard installer、full installer 和 full 分卷 hash；runtime verification 状态为 `ok`。
 2. 最终自动化验证
-   - 全量测试：`E:\Ana\python.exe -m pytest -q -p no:cacheprovider --basetemp .pytest_tmp_runtime\final-release-after-gui`，结果 `237 passed, 2 warnings in 156.39s`；warning 仍为既有 SWIG `SwigPyPacked/SwigPyObject` deprecation。
+   - 全量测试：`E:\Ana\python.exe -m pytest -q -p no:cacheprovider --basetemp .pytest_tmp_runtime\final-release-after-review-fixes`，结果 `240 passed, 2 warnings in 201.07s`；warning 仍为既有 SWIG `SwigPyPacked/SwigPyObject` deprecation。
    - E 盘 runtime：`E:\Ana\python.exe scripts\verify_optional_runtimes.py --runtime-root 'E:\Cn-Jp Translate\.runtime'`，结果 `runtime verification: ok`。
    - Source acceptance：`powershell -ExecutionPolicy Bypass -File .\run_desktop_acceptance.ps1 -OutputDir '.acceptance\source-final'`，结果 `local acceptance: ok`、`verification: passed`。
    - Portable packaged diagnostics：最新 `dist\ConsensusTranslationAgent\ConsensusTranslationAgent.exe --diagnostics --diagnostics-mode installed ...`，退出码 `0`。
@@ -17,18 +17,19 @@
    - Full installed diagnostics：`desktop_install=ok`、`ocr_tesseract=ok`、`comet_runtime=ok`、`provider_configs=warning`、`gui_smoke=warning`；warning 均为未配置真实远端 provider 与人工 GUI 状态，不是功能缺失。
    - 可见 GUI smoke：启动最新 packaged exe，进程保持运行 8 秒，`CloseMainWindow=True` 后关闭。
 3. 设计验证门逐项审计
-   - 门 1：隔离用户目录的全量测试通过；测试 basetemp 位于 `.pytest_tmp_runtime\final-release-after-gui`，不依赖真实 `%LOCALAPPDATA%`。
+   - 门 1：隔离用户目录的全量测试通过；测试 basetemp 位于 `.pytest_tmp_runtime\final-release-after-review-fixes`，不依赖真实 `%LOCALAPPDATA%`。
    - 门 2：PySide6 主流程由 `tests/test_desktop_qt_workflows.py`、`tests/test_desktop_qt_shell.py`、`tests/test_desktop_qt_help.py` 覆盖，并通过 source/packaged smoke 验证离线翻译和 artifact 输出。
-   - 门 3：provider 设置、预检、确认和模拟 smoke 由 `tests/test_desktop_agent_app.py`、`tests/test_agent_provider_smoke.py`、`tests/test_desktop_qt_workflows.py` 覆盖；未使用真实 API key。
+   - 门 3：provider 设置、预检、确认和模拟 smoke 由 `tests/test_desktop_agent_app.py`、`tests/test_agent_provider_smoke.py`、`tests/test_desktop_qt_workflows.py` 覆盖；默认 provider smoke 不会触发真实远端调用，需显式 `allow_live_remote=True` 才允许使用 API key 联调。
    - 门 4：Tesseract `eng/jpn/chi_sim/chi_tra` 语言包和生成图片 OCR fixture 由 `scripts/verify_optional_runtimes.py` 验证通过。
-   - 门 5：COMET CLI、`Unbabel/wmt22-comet-da` 模型加载和小样本评分由同一 runtime verifier 验证通过。
+   - 门 5：COMET CLI、`Unbabel/wmt22-comet-da` 模型加载和小样本评分由同一 runtime verifier 验证通过；安装包使用可搬迁的 `runtime\comet-score.cmd` 包装器调用 `python -m comet.cli.score`。
    - 门 6：portable packaged diagnostics 和 local smoke 均退出码 `0`；diagnostics 不要求开发工具链。
    - 门 7：安装器支持非默认 E 盘路径、desktop shortcut task、启动应用、运行 diagnostics/local smoke 和完整卸载；`installed-release-verification.json` 记录快捷方式与 `UninstallString`。
-   - 门 8：Full 安装后 runtime 位于用户选择的安装根目录 `...\installed-final-full\runtime`；除桌面/开始菜单快捷方式和卸载注册信息外，未静默创建其他运行时副本。
+   - 门 8：Full 安装后 runtime 位于用户选择的安装根目录 `...\installed-final-full\runtime`；已验证安装后存在可搬迁 `runtime\comet-score.cmd`，且不会安装绑定开发机绝对路径的 `runtime\comet-env\Scripts\comet-score.exe`；除桌面/开始菜单快捷方式和卸载注册信息外，未静默创建其他运行时副本。
    - 门 9：内置帮助由 `docs/help/*.md` 与 PySide6 Help 页面提供，覆盖快速开始、输入连接器、provider、runtime troubleshooting、隐私和许可证。
    - 门 10：release manifest 记录 exe、zip、standard installer、full installer 和分卷 hash；许可证边界见 `LICENSE`、`MODEL_LICENSES.md`、`THIRD_PARTY_NOTICES.md`、`PRIVACY.md` 和 `docs/release_checklist_zh.md`。
 4. 发布边界
    - 真实远端 provider/API key 未运行，符合本轮约束；代码层和前端层已完成配置、预检、确认、禁用保护和 smoke 测试路径。
+   - 代码审查硬化项已落地：COMET runtime 可搬迁、Qt 安装态 diagnostics 默认使用 `installed` 模式、provider smoke 默认禁止真实远端调用、发布脚本按 C→E 顺序查找 Python，并自动记录 standard/full installer。
    - 当前安装包未签名；正式商业分发前需补代码签名、干净构建机复核和真实 provider 联调。
 
 ## 三十一、E 盘外部运行时与真实数据安全闭环（2026-06-18）

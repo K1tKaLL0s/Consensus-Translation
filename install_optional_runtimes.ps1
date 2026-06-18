@@ -223,13 +223,39 @@ function Write-RuntimeSettings {
         runtime_root = Convert-ToRuntimeSettingPath -Path $RuntimeRoot -InstallRoot $InstallRoot
         tesseract_command = Convert-ToRuntimeSettingPath -Path (Join-Path $RuntimeRoot "Tesseract-OCR\tesseract.exe") -InstallRoot $InstallRoot
         ocr_language = "eng+jpn+chi_sim+chi_tra"
-        comet_command = Convert-ToRuntimeSettingPath -Path (Join-Path $RuntimeRoot "comet-env\Scripts\comet-score.exe") -InstallRoot $InstallRoot
+        comet_command = Convert-ToRuntimeSettingPath -Path (Join-Path $RuntimeRoot "comet-score.cmd") -InstallRoot $InstallRoot
         comet_model = $RuntimeManifest.comet_model
         comet_model_storage_path = Convert-ToRuntimeSettingPath -Path (Join-Path $RuntimeRoot "comet-models") -InstallRoot $InstallRoot
     }
     $settingsPath = Join-Path $RuntimeRoot "runtime-settings.json"
     $settings | ConvertTo-Json | Set-Content -LiteralPath $settingsPath -Encoding UTF8
     Write-Output "optional-runtime-settings=$settingsPath"
+}
+
+function Write-CometWrapper {
+    param([Parameter(Mandatory = $true)][string]$RuntimeRoot)
+
+    $wrapperPath = Join-Path $RuntimeRoot "comet-score.cmd"
+    $wrapper = @'
+@echo off
+set "RUNTIME_ROOT=%~dp0"
+set "COMET_PYTHON=%RUNTIME_ROOT%comet-env\python.exe"
+if not exist "%COMET_PYTHON%" (
+  echo COMET Python not found: %COMET_PYTHON% 1>&2
+  exit /b 127
+)
+set "COMET_MODELS=%RUNTIME_ROOT%comet-models"
+set "HF_HOME=%COMET_MODELS%\huggingface"
+set "HUGGINGFACE_HUB_CACHE=%COMET_MODELS%\huggingface\hub"
+set "TRANSFORMERS_CACHE=%COMET_MODELS%\huggingface\hub"
+set "TORCH_HOME=%COMET_MODELS%\torch"
+set "XDG_CACHE_HOME=%COMET_MODELS%\xdg-cache"
+set "HF_HUB_DISABLE_XET=1"
+set "HF_HUB_DISABLE_SYMLINKS_WARNING=1"
+"%COMET_PYTHON%" -m comet.cli.score %*
+exit /b %ERRORLEVEL%
+'@
+    Set-Content -LiteralPath $wrapperPath -Encoding ASCII -Value $wrapper
 }
 
 $noExplicitDownloadSwitch = -not (
@@ -365,6 +391,11 @@ else:
     if ($LASTEXITCODE -ne 0) {
         throw "COMET model download failed"
     }
+}
+
+$cometPythonForWrapper = Join-Path $cometEnv "python.exe"
+if (Test-Path -LiteralPath $cometPythonForWrapper) {
+    Write-CometWrapper -RuntimeRoot $RuntimeRoot
 }
 
 Write-RuntimeSettings -RuntimeRoot $RuntimeRoot -InstallRoot $installRoot

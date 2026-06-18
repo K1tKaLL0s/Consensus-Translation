@@ -60,7 +60,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "{#AppPayload}\*"; DestDir: "{app}\ConsensusTranslationAgent"; Excludes: "data\*"; Flags: ignoreversion recursesubdirs createallsubdirs
 #ifdef RuntimePayload
-Source: "{#RuntimePayload}\*"; DestDir: "{app}\runtime"; Excludes: "downloads\*,conda-pkgs\*,conda-envs\*,pip-cache\*,pip-cache-comet\*,python-packages-qt\*,temp\*,pyinstaller-cache\*,runtime-settings.json,runtime-verification.json"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#RuntimePayload}\*"; DestDir: "{app}\runtime"; Excludes: "downloads\*,conda-pkgs\*,conda-envs\*,pip-cache\*,pip-cache-comet\*,python-packages-qt\*,temp\*,pyinstaller-cache\*,runtime-settings.json,runtime-verification.json,comet-env\Scripts\*.exe"; Flags: ignoreversion recursesubdirs createallsubdirs
 #endif
 
 [Icons]

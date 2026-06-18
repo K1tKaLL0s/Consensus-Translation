@@ -6,10 +6,24 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$python = "E:\Ana\python.exe"
-if (-not (Test-Path -LiteralPath $python)) {
-    $python = "python"
+function Find-Python {
+    $candidates = @(
+        "C:\Python313\python.exe",
+        "C:\Python312\python.exe",
+        "C:\Python311\python.exe",
+        "$env:LOCALAPPDATA\Programs\Python\Python313\python.exe",
+        "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe",
+        "$env:LOCALAPPDATA\Programs\Python\Python311\python.exe",
+        "E:\Ana\python.exe"
+    )
+    foreach ($candidate in $candidates) {
+        if (Test-Path -LiteralPath $candidate) {
+            return $candidate
+        }
+    }
+    return "python"
 }
+$python = Find-Python
 
 $root = Get-Location
 $env:PYTHONPATH = Join-Path $root "src"

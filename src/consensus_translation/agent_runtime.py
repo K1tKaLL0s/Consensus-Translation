@@ -49,7 +49,7 @@ class RuntimeLayout:
                 runtime / "Tesseract-OCR" / "tesseract.exe"
             ).resolve(),
             comet_command=(
-                runtime / "comet-env" / "Scripts" / "comet-score.exe"
+                runtime / "comet-score.cmd"
             ).resolve(),
             comet_model_root=(runtime / "comet-models").resolve(),
         )
@@ -94,7 +94,7 @@ class RuntimeLayout:
                 comet_command=_resolve_configured_path(
                     settings.get(
                         "comet_command",
-                        runtime / "comet-env" / "Scripts" / "comet-score.exe",
+                        runtime / "comet-score.cmd",
                     ),
                     root,
                 ),
@@ -130,7 +130,7 @@ class RuntimeLayout:
                 runtime / "Tesseract-OCR" / "tesseract.exe"
             ).resolve(),
             comet_command=(
-                runtime / "comet-env" / "Scripts" / "comet-score.exe"
+                runtime / "comet-score.cmd"
             ).resolve(),
             comet_model_root=(runtime / "comet-models").resolve(),
         )
@@ -208,9 +208,16 @@ def default_comet_candidates(
 ) -> list[Path]:
     local_app_data = os.getenv("LOCALAPPDATA")
     candidates = [
+        Path(r"C:\ConsensusTranslationRuntime\comet-score.cmd"),
         Path(r"C:\ConsensusTranslationRuntime\comet-env\Scripts\comet-score.exe"),
     ]
     if local_app_data:
+        candidates.append(
+            Path(local_app_data)
+            / "ConsensusTranslation"
+            / "runtime"
+            / "comet-score.cmd"
+        )
         candidates.append(
             Path(local_app_data)
             / "ConsensusTranslation"
@@ -221,8 +228,14 @@ def default_comet_candidates(
         )
     candidates.extend(
         [
+            Path(r"E:\ConsensusTranslationRuntime\comet-score.cmd"),
             Path(r"E:\ConsensusTranslationRuntime\comet-env\Scripts\comet-score.exe"),
+            Path(r"E:\Tools\comet-score.cmd"),
             Path(r"E:\Tools\comet-env\Scripts\comet-score.exe"),
+            *[
+                root / "comet-score.cmd"
+                for root in _runtime_roots(project_root)
+            ],
             *[
                 root / "comet-env" / "Scripts" / "comet-score.exe"
                 for root in _runtime_roots(project_root)
@@ -295,6 +308,8 @@ def resolve_comet_model_storage_path(
     if configured_value:
         return configured_value
     command_path = Path(comet_command)
+    if command_path.is_absolute() and command_path.name.lower() == "comet-score.cmd":
+        return str(command_path.parent / "comet-models")
     if command_path.is_absolute() and len(command_path.parents) >= 3:
         return str(command_path.parents[2] / "comet-models")
     settings = load_runtime_settings(project_root)

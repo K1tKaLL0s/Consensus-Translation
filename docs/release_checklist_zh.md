@@ -1,6 +1,6 @@
 # 桌面翻译 Agent 发布核验清单
 
-日期：2026-06-18
+日期：2026-06-19
 
 ## 自动化证据
 
@@ -9,14 +9,16 @@
 - 完整安装包：`powershell -ExecutionPolicy Bypass -File .\build_installer.ps1 -Channel full -RuntimePayload 'E:\Cn-Jp Translate\.runtime'`
 - E 盘 runtime 验证：`E:\Ana\python.exe scripts\verify_optional_runtimes.py --runtime-root 'E:\Cn-Jp Translate\.runtime'`
 - 安装后验收：`powershell -ExecutionPolicy Bypass -File .\scripts\verify_installed_release.ps1 -InstallerPath <installer> -InstallDir <E:\path>`
+- 全量回归：`E:\Ana\python.exe -m pytest -q -p no:cacheprovider --basetemp .pytest_tmp_runtime\final-release-after-review-fixes`
 
 ## 当前自动化通过项
 
 - Tesseract 5.5.0 与 `eng/jpn/chi_sim/chi_tra` OCR fixture。
-- COMET CLI、`Unbabel/wmt22-comet-da` 模型加载与本地样例评分。
+- COMET CLI、`Unbabel/wmt22-comet-da` 模型加载与本地样例评分；完整安装包使用可搬迁的 `runtime\comet-score.cmd`，并排除绑定开发机绝对路径的 `comet-env\Scripts\comet-score.exe` launcher。
 - Qt packaged diagnostics 与 local smoke。
 - Inno Setup 安装器支持用户选择安装目录和 desktop shortcut task。
 - 标准安装包为单 exe；完整安装包因内置 COMET runtime 使用 Inno 分卷。
+- Provider smoke 默认不触发真实远端 API；正式联调需显式允许 live remote 并配置 API key。
 
 ## 仍不包含或需目标机确认
 

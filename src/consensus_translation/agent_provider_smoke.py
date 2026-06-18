@@ -26,6 +26,7 @@ def smoke_test_provider(
     topic: str = "provider-smoke",
     sample_text: str = "hello",
     api_enabled: bool = True,
+    allow_live_remote: bool = False,
 ) -> ProviderSmokeResult:
     started_at = perf_counter()
     if provider.requires_api and not api_enabled:
@@ -39,6 +40,18 @@ def smoke_test_provider(
             total_tokens=0,
             warnings=[],
             error="api disabled",
+        )
+    if provider.requires_api and not allow_live_remote:
+        return ProviderSmokeResult(
+            provider_id=provider.provider_id,
+            ok=False,
+            sample_text=sample_text,
+            translated_text="",
+            latency_ms=int((perf_counter() - started_at) * 1000),
+            cost=0.0,
+            total_tokens=0,
+            warnings=[],
+            error="live remote smoke requires explicit confirmation",
         )
     try:
         candidate = provider.translate(

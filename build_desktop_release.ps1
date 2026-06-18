@@ -1,9 +1,23 @@
 $ErrorActionPreference = "Stop"
 
-$python = "E:\Ana\python.exe"
-if (-not (Test-Path -LiteralPath $python)) {
-    $python = "python"
+function Find-Python {
+    $candidates = @(
+        "C:\Python313\python.exe",
+        "C:\Python312\python.exe",
+        "C:\Python311\python.exe",
+        "$env:LOCALAPPDATA\Programs\Python\Python313\python.exe",
+        "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe",
+        "$env:LOCALAPPDATA\Programs\Python\Python311\python.exe",
+        "E:\Ana\python.exe"
+    )
+    foreach ($candidate in $candidates) {
+        if (Test-Path -LiteralPath $candidate) {
+            return $candidate
+        }
+    }
+    return "python"
 }
+$python = Find-Python
 
 $root = Get-Location
 $env:PYTHONPATH = Join-Path $root "src"
@@ -24,9 +38,14 @@ $releaseArgs = @(
     "--license-profile",
     "commercial-safe"
 )
-$standardInstaller = Join-Path $root "release\ConsensusTranslationAgent-Setup-standard.exe"
-if (Test-Path -LiteralPath $standardInstaller) {
-    $releaseArgs += @("--installer-path", $standardInstaller)
+$installerCandidates = @(
+    (Join-Path $root "release\ConsensusTranslationAgent-Setup-standard.exe"),
+    (Join-Path $root "release\ConsensusTranslationAgent-Setup-full.exe")
+)
+foreach ($installer in $installerCandidates) {
+    if (Test-Path -LiteralPath $installer) {
+        $releaseArgs += @("--installer-path", $installer)
+    }
 }
 & $python @releaseArgs
 if ($LASTEXITCODE -ne 0) {

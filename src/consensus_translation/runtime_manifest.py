@@ -101,7 +101,7 @@ class RuntimeManifest:
             ),
             "ocr_language": "+".join(self.ocr_languages),
             "comet_command": self._portable_path(
-                runtime / "comet-env" / "Scripts" / "comet-score.exe",
+                runtime / "comet-score.cmd",
                 install,
             ),
             "comet_model": self.comet_model,

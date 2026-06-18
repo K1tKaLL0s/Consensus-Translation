@@ -36,6 +36,9 @@ def test_optional_runtime_installer_is_e_drive_scoped_and_reproducible():
     assert "HF_HOME" in source
     assert "TORCH_HOME" in source
     assert "download-comet-model.py" in source
+    assert "Write-CometWrapper" in source
+    assert "comet-score.cmd" in source
+    assert "-m comet.cli.score" in source
     assert "snapshot_download" in source
     assert "max_workers=1" in source
     assert "comet-models" in source

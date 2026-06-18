@@ -386,7 +386,10 @@ def test_desktop_agent_controller_smoke_tests_current_providers():
         ],
     )
 
-    results = controller.smoke_test_providers(sample_text="Leviathan")
+    results = controller.smoke_test_providers(
+        sample_text="Leviathan",
+        allow_live_remote=True,
+    )
 
     assert [result.provider_id for result in results] == ["remote-a", "remote-failing"]
     assert results[0].ok is True
@@ -412,6 +415,26 @@ def test_desktop_agent_controller_smoke_respects_api_disabled():
 
     assert results[0].ok is False
     assert results[0].error == "api disabled"
+    assert remote.calls == 0
+
+
+def test_desktop_agent_controller_smoke_blocks_live_remote_by_default():
+    remote = StaticModelProvider(
+        "remote-a",
+        "remote smoke translation",
+        confidence=0.8,
+        estimated_cost=0.25,
+        requires_api=True,
+    )
+    controller = DesktopAgentController(
+        DesktopAgentConfig(source_lang="en", target_lang="zh", api_enabled=True),
+        providers=[remote],
+    )
+
+    results = controller.smoke_test_providers(sample_text="Leviathan")
+
+    assert results[0].ok is False
+    assert results[0].error == "live remote smoke requires explicit confirmation"
     assert remote.calls == 0
 
 
@@ -458,7 +481,7 @@ def test_desktop_controller_uses_configured_runtime_commands_for_diagnostics(tmp
     controller = DesktopAgentController(
         DesktopAgentConfig(
             tesseract_command=r"E:\runtime\Tesseract-OCR\tesseract.exe",
-            comet_command=r"E:\runtime\comet-env\Scripts\comet-score.exe",
+            comet_command=r"E:\runtime\comet-score.cmd",
         )
     )
 
@@ -472,7 +495,7 @@ def test_desktop_controller_uses_configured_runtime_commands_for_diagnostics(tmp
     assert captured_commands[:3] == [
         [r"E:\runtime\Tesseract-OCR\tesseract.exe", "--version"],
         [r"E:\runtime\Tesseract-OCR\tesseract.exe", "--list-langs"],
-        [r"E:\runtime\comet-env\Scripts\comet-score.exe", "--help"],
+        [r"E:\runtime\comet-score.cmd", "--help"],
     ]
     assert statuses["ocr_tesseract"] == "ok"
     assert statuses["comet_runtime"] == "ok"
@@ -513,9 +536,7 @@ def test_installed_diagnostics_only_checks_selected_install_runtime(tmp_path):
         str(
             install_root
             / "runtime"
-            / "comet-env"
-            / "Scripts"
-            / "comet-score.exe"
+            / "comet-score.cmd"
         ),
         "--help",
     ]

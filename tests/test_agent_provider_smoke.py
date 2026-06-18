@@ -55,6 +55,7 @@ def test_smoke_test_provider_uses_small_translation_request_and_returns_result()
         target_lang="zh",
         topic="provider-smoke",
         sample_text="Leviathan",
+        allow_live_remote=True,
     )
 
     assert isinstance(result, ProviderSmokeResult)
@@ -77,7 +78,7 @@ def test_smoke_test_provider_uses_small_translation_request_and_returns_result()
 
 
 def test_smoke_test_provider_reports_errors_without_raising():
-    result = smoke_test_provider(FailingProvider())
+    result = smoke_test_provider(FailingProvider(), allow_live_remote=True)
 
     assert result.ok is False
     assert result.provider_id == "remote-failing"
@@ -95,6 +96,16 @@ def test_smoke_test_provider_skips_remote_provider_when_api_disabled():
     assert result.ok is False
     assert result.provider_id == "remote-a"
     assert result.error == "api disabled"
+    assert provider.request is None
+
+
+def test_smoke_test_provider_blocks_remote_provider_without_confirmation():
+    provider = CapturingProvider()
+
+    result = smoke_test_provider(provider, api_enabled=True)
+
+    assert result.ok is False
+    assert result.error == "live remote smoke requires explicit confirmation"
     assert provider.request is None
 
 

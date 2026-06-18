@@ -120,6 +120,18 @@ if (-not (Test-Path -LiteralPath $exe)) {
     throw "Installed executable missing: $exe"
 }
 
+$runtimeRoot = Join-Path $install "runtime"
+if (Test-Path -LiteralPath $runtimeRoot) {
+    $cometWrapper = Join-Path $runtimeRoot "comet-score.cmd"
+    if (-not (Test-Path -LiteralPath $cometWrapper)) {
+        throw "Relocatable COMET wrapper missing: $cometWrapper"
+    }
+    $nonRelocatableLauncher = Join-Path $runtimeRoot "comet-env\Scripts\comet-score.exe"
+    if (Test-Path -LiteralPath $nonRelocatableLauncher) {
+        throw "Non-relocatable COMET launcher should not be installed: $nonRelocatableLauncher"
+    }
+}
+
 $dataDir = Join-Path $install "data"
 $diagnosticsReport = Join-Path $report "installed-diagnostics.json"
 Invoke-HiddenProcess `

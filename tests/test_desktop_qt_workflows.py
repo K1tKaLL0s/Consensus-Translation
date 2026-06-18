@@ -14,6 +14,7 @@ if str(SRC) not in sys.path:
 
 from PySide6.QtCore import Qt
 
+from consensus_translation.agent_diagnostics import DiagnosticReport
 from consensus_translation.agent_credentials import LocalCredentialStore
 from consensus_translation.agent_providers import EchoModelProvider
 from consensus_translation.agent_providers import StaticModelProvider
@@ -96,6 +97,29 @@ def test_workbench_translates_and_renders_result(qtbot, qt_service, tmp_path):
 
     assert page.result_editor.toPlainText() == "JP:alpha beta"
     assert page.status_label.text() in {"已完成", "等待人工确认"}
+
+
+def test_qt_service_uses_installed_diagnostics_mode_when_frozen(
+    qt_service,
+    monkeypatch,
+):
+    captured = {}
+
+    def fake_run_diagnostics(credential_store, mode):
+        captured["mode"] = mode
+        return DiagnosticReport(
+            overall_status="ok",
+            checks=[],
+            counts={"ok": 0, "warning": 0, "error": 0},
+        )
+
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(qt_service.controller, "run_diagnostics", fake_run_diagnostics)
+
+    lines = qt_service.run_diagnostics()
+
+    assert captured["mode"] == "installed"
+    assert lines[0].startswith("diagnostics: ok")
 
 
 def test_workbench_preflights_remote_calls_and_exports_artifacts(

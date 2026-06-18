@@ -19,7 +19,7 @@ def test_installer_supports_directory_and_desktop_shortcut():
     assert 'Source: "{#AppPayload}\\*"; DestDir: "{app}\\ConsensusTranslationAgent"' in source
     assert 'Excludes: "data\\*"' in source
     assert 'Source: "{#RuntimePayload}\\*"; DestDir: "{app}\\runtime"' in source
-    assert 'Excludes: "downloads\\*,conda-pkgs\\*,conda-envs\\*,pip-cache\\*,pip-cache-comet\\*,python-packages-qt\\*,temp\\*,pyinstaller-cache\\*,runtime-settings.json,runtime-verification.json"' in source
+    assert 'Excludes: "downloads\\*,conda-pkgs\\*,conda-envs\\*,pip-cache\\*,pip-cache-comet\\*,python-packages-qt\\*,temp\\*,pyinstaller-cache\\*,runtime-settings.json,runtime-verification.json,comet-env\\Scripts\\*.exe"' in source
     assert "DiskSpanning=yes" in source
 
 
