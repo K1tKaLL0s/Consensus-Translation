@@ -5,6 +5,8 @@ __all__ = [
     "workbench",
     "projects",
     "lexicon",
+    "connectors",
     "providers",
     "diagnostics",
+    "help",
 ]

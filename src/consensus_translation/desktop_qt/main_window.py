@@ -29,7 +29,9 @@ from consensus_translation.desktop_qt.navigation import (
     NAVIGATION_LABELS,
     NavigationList,
 )
+from consensus_translation.desktop_qt.pages.connectors import ConnectorsPage
 from consensus_translation.desktop_qt.pages.diagnostics import DiagnosticsPage
+from consensus_translation.desktop_qt.pages.help import HelpPage
 from consensus_translation.desktop_qt.pages.home import HomePage
 from consensus_translation.desktop_qt.pages.lexicon import LexiconPage
 from consensus_translation.desktop_qt.pages.projects import ProjectsPage
@@ -57,16 +59,6 @@ class PlaceholderPage(QWidget):
         layout.addWidget(title)
         layout.addWidget(description)
         layout.addStretch(1)
-
-
-class ConnectorsPage(PlaceholderPage):
-    page_title = "输入连接器"
-    page_description = "接入剪贴板、OCR、文件夹收件箱和第三方工具导出的文本。"
-
-
-class HelpPage(PlaceholderPage):
-    page_title = "帮助中心"
-    page_description = "搜索快速开始、连接器、provider、运行时排障、隐私和许可说明。"
 
 
 PAGE_TYPES: tuple[type[QWidget], ...] = (

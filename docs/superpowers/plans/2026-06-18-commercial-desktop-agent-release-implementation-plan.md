@@ -531,7 +531,7 @@ git commit -m "feat: connect PySide6 pages to agent workflows"
 - Test: `tests/test_agent_input_plugins.py`
 - Test: `tests/test_desktop_qt_help.py`
 
-- [ ] **Step 1: Write failing search and folder-connector tests**
+- [x] **Step 1: Write failing search and folder-connector tests**
 
 ```python
 def test_help_search_finds_textractor_guidance():
@@ -554,21 +554,21 @@ def test_folder_connector_reads_utf8_text_once(tmp_path):
     assert second == []
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```powershell
 E:\Ana\python.exe -m pytest -q tests\test_help_content.py tests\test_agent_input_plugins.py tests\test_desktop_qt_help.py
 ```
 
-- [ ] **Step 3: Implement indexed Markdown help**
+- [x] **Step 3: Implement indexed Markdown help**
 
 Load packaged Markdown into `HelpTopic(topic_id, title, keywords, markdown)`. Search case-folded title, keywords, and body, rank exact title/keyword matches first, and render selected content in a read-only Qt text browser. Package the Markdown files as PyInstaller data.
 
-- [ ] **Step 4: Implement safe connector boundaries**
+- [x] **Step 4: Implement safe connector boundaries**
 
 Add a folder inbox plugin with UTF-8 text/JSON support, content hash de-duplication, maximum payload size, and explicit archive/error directories. Keep clipboard/Hook buffer support. Document Textractor pipe/extension output, LunaTranslator clipboard/file output, and GalTransl project-file exchange without copying or embedding GPL project code.
 
-- [ ] **Step 5: Verify and commit**
+- [x] **Step 5: Verify and commit**
 
 ```powershell
 $env:QT_QPA_PLATFORM = 'offscreen'
