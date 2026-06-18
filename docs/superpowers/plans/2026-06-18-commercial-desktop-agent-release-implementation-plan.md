@@ -717,7 +717,7 @@ git commit -m "build: package PySide6 desktop application"
 - Create: `tests/test_installer_definition.py`
 - Modify: `.gitignore`
 
-- [ ] **Step 1: Write failing installer contract tests**
+- [x] **Step 1: Write failing installer contract tests**
 
 ```python
 def test_installer_supports_directory_and_desktop_shortcut():
@@ -730,26 +730,26 @@ def test_installer_supports_directory_and_desktop_shortcut():
     assert 'Source: "{#RuntimePayload}\\*"; DestDir: "{app}\\runtime"' in source
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```powershell
 E:\Ana\python.exe -m pytest -q tests\test_installer_definition.py
 ```
 
-- [ ] **Step 3: Install Inno Setup under E and implement installer**
+- [x] **Step 3: Install Inno Setup under E and implement installer**
 
 Search C first, then E. If ISCC is absent, download the official installer to `E:\Cn-Jp Translate\.runtime\downloads`, verify its publisher/hash, and install compiler files to `E:\Cn-Jp Translate\.runtime\InnoSetup6`.
 
 The `.iss` file uses one stable AppId, selectable `DefaultDirName`, a `desktopicon` task, start-menu and uninstall entries, license/privacy pages, app/help/runtime payloads, upgrade-safe overwrite rules, and optional data removal on uninstall. `build_installer.ps1` discovers ISCC C then E and never installs tools to C automatically.
 
-- [ ] **Step 4: Build standard and full installers**
+- [x] **Step 4: Build standard and full installers**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\build_installer.ps1 -RuntimePayload 'E:\Cn-Jp Translate\.runtime' -Channel full
 powershell -ExecutionPolicy Bypass -File .\build_installer.ps1 -Channel standard
 ```
 
-- [ ] **Step 5: Verify installer metadata and commit**
+- [x] **Step 5: Verify installer metadata and commit**
 
 ```powershell
 E:\Ana\python.exe -m pytest -q tests\test_installer_definition.py
