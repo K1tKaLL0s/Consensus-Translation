@@ -188,7 +188,7 @@ git commit -m "fix: unify runtime layout and isolate tests"
 - Test: `tests/test_agent_diagnostics.py`
 - Test: `tests/test_desktop_agent_app.py`
 
-- [ ] **Step 1: Write failing installed-mode diagnostic tests**
+- [x] **Step 1: Write failing installed-mode diagnostic tests**
 
 ```python
 def test_installed_diagnostics_does_not_require_build_tooling(tmp_path):
@@ -229,7 +229,7 @@ def test_ocr_diagnostics_checks_required_languages(tmp_path):
     assert "jpn" in " ".join(check.details)
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run:
 
@@ -239,7 +239,7 @@ E:\Ana\python.exe -m pytest -q tests\test_agent_diagnostics.py tests\test_deskto
 
 Expected: `run_desktop_diagnostics()` rejects `mode` and `required_ocr_languages`.
 
-- [ ] **Step 3: Implement diagnostic profiles**
+- [x] **Step 3: Implement diagnostic profiles**
 
 Add `mode: Literal["developer", "installed"] = "developer"`, `runtime_layout`, and `required_ocr_languages`. Developer mode keeps packaging/release checks. Installed mode checks the actual executable or supplied `install_root`, writable runtime/data roots, help payload, Tesseract version/languages, COMET CLI/model, provider config contract, and manual GUI status.
 
@@ -252,7 +252,7 @@ Change OCR probing to execute both:
 
 Make `desktop_agent_app --diagnostics` default to `installed` when `sys.frozen` is true, and expose `--diagnostics-mode developer|installed` for explicit control.
 
-- [ ] **Step 4: Verify packaged CLI behavior at source level**
+- [x] **Step 4: Verify packaged CLI behavior at source level**
 
 Run:
 
@@ -263,7 +263,7 @@ E:\Ana\python.exe -m consensus_translation.desktop_agent_app --diagnostics --dia
 
 Expected: no missing PyInstaller/source/dist error appears; optional runtime gaps are warnings.
 
-- [ ] **Step 5: Run GREEN tests and commit**
+- [x] **Step 5: Run GREEN tests and commit**
 
 ```powershell
 E:\Ana\python.exe -m pytest -q tests\test_agent_diagnostics.py tests\test_desktop_agent_app.py tests\test_desktop_packaging.py

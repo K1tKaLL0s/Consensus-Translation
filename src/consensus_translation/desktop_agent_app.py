@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import os
 from pathlib import Path
+import sys
 
 from consensus_translation.agent_acceptance import (
     LocalAcceptanceResult,
@@ -411,14 +412,34 @@ class DesktopAgentController:
         credential_store: object | None = None,
         command_runner: CommandRunner | None = None,
         import_checker: ImportChecker | None = None,
+        mode: str = "developer",
     ) -> DiagnosticReport:
         root = project_root or Path(__file__).resolve().parents[2]
+        required_languages = tuple(
+            language.strip()
+            for language in self.config.ocr_language.split("+")
+            if language.strip()
+        )
+        if mode == "installed":
+            tesseract_command = (
+                self.config.tesseract_command.strip()
+                or str(self.runtime_layout.tesseract_command)
+            )
+            comet_command = (
+                self.config.comet_command.strip()
+                or str(self.runtime_layout.comet_command)
+            )
+        else:
+            tesseract_command = self._resolved_tesseract_command()
+            comet_command = self._resolved_comet_command()
         kwargs: dict[str, object] = {
             "project_root": root,
             "store": self.store,
             "credential_store": credential_store,
-            "tesseract_command": self._resolved_tesseract_command(),
-            "comet_command": self._resolved_comet_command(),
+            "tesseract_command": tesseract_command,
+            "comet_command": comet_command,
+            "mode": mode,
+            "required_ocr_languages": required_languages,
         }
         if command_runner is not None:
             kwargs["command_runner"] = command_runner
@@ -1239,7 +1260,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--acceptance-dir")
     parser.add_argument("--report-json")
     parser.add_argument("--project-root")
+    parser.add_argument("--install-root")
     parser.add_argument("--data-dir")
+    parser.add_argument(
+        "--diagnostics-mode",
+        choices=("developer", "installed"),
+    )
     parser.add_argument("--project-id", default="default")
     args = parser.parse_args(argv)
 
@@ -1268,8 +1294,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.diagnostics:
         store = AgentRunStore(store_path)
         credential_store = LocalCredentialStore(credentials_path)
+        diagnostic_root = args.install_root or args.project_root or Path.cwd()
+        diagnostic_mode = args.diagnostics_mode or (
+            "installed" if getattr(sys, "frozen", False) else "developer"
+        )
         runtime_layout = RuntimeLayout.discover(
-            project_root=args.project_root or Path.cwd(),
+            project_root=args.project_root or diagnostic_root,
+            install_root=args.install_root,
             data_root=args.data_dir,
         )
         controller = DesktopAgentController(
@@ -1278,8 +1309,9 @@ def main(argv: list[str] | None = None) -> int:
             runtime_layout=runtime_layout,
         )
         report = controller.run_diagnostics(
-            project_root=args.project_root or Path.cwd(),
+            project_root=diagnostic_root,
             credential_store=credential_store,
+            mode=diagnostic_mode,
         )
         for line in format_diagnostic_lines(report):
             print(line)
