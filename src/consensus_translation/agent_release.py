@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import shutil
 import zipfile
+from collections.abc import Sequence
 
 
 @dataclass(frozen=True)
@@ -134,6 +135,14 @@ def _installer_artifact_payload(installer_path: Path, root: Path) -> dict[str, o
     return payload
 
 
+def _installer_paths(value: str | Path | Sequence[str | Path] | None) -> list[Path]:
+    if value is None:
+        return []
+    if isinstance(value, (str, Path)):
+        return [Path(value)]
+    return [Path(path) for path in value]
+
+
 def _write_zip(
     app_dir: Path,
     docs: list[Path],
@@ -161,7 +170,7 @@ def build_desktop_release_package(
     version: str,
     channel: str = "portable",
     license_profile: str = "portable-dev",
-    installer_path: str | Path | None = None,
+    installer_path: str | Path | Sequence[str | Path] | None = None,
 ) -> DesktopReleaseBuild:
     root = Path(project_root).resolve()
     preflight = check_desktop_release_ready(root)
@@ -181,9 +190,13 @@ def build_desktop_release_package(
     zip_path = preflight.release_dir / f"{release_name}.zip"
     manifest_path = release_dir / "release-manifest.json"
 
-    installer_artifact = (
-        _installer_artifact_payload(Path(installer_path), root)
-        if installer_path is not None
+    installer_artifacts = [
+        _installer_artifact_payload(path, root)
+        for path in _installer_paths(installer_path)
+    ]
+    primary_installer = (
+        installer_artifacts[0]
+        if installer_artifacts
         else None
     )
     not_included = [
@@ -191,7 +204,7 @@ def build_desktop_release_package(
         "auto-update",
         "live-remote-provider-validation",
     ]
-    if installer_artifact is None:
+    if primary_installer is None:
         not_included.insert(1, "installer")
 
     manifest = {
@@ -226,8 +239,9 @@ def build_desktop_release_package(
         "runtime_verification": _runtime_verification_payload(root),
         "not_included": not_included,
     }
-    if installer_artifact is not None:
-        manifest["artifacts"]["installer"] = installer_artifact
+    if primary_installer is not None:
+        manifest["artifacts"]["installer"] = primary_installer
+        manifest["artifacts"]["installers"] = installer_artifacts
     manifest_path.write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True),
         encoding="utf-8",
@@ -253,7 +267,7 @@ def build_desktop_release_package(
         exe_sha256=exe_sha256,
         zip_sha256=final_zip_sha256,
         installer_sha256=(
-            str(installer_artifact["sha256"]) if installer_artifact is not None else None
+            str(primary_installer["sha256"]) if primary_installer is not None else None
         ),
     )
 
@@ -265,7 +279,7 @@ def main() -> int:
     parser.add_argument("--version", default=datetime.now().strftime("%Y.%m.%d"))
     parser.add_argument("--channel", default="portable")
     parser.add_argument("--license-profile", default="portable-dev")
-    parser.add_argument("--installer-path")
+    parser.add_argument("--installer-path", action="append")
     args = parser.parse_args()
 
     result = build_desktop_release_package(

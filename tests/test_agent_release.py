@@ -141,6 +141,32 @@ def test_release_manifest_records_installer_and_license_profile(tmp_path):
     assert manifest["runtime_verification"]["status"] == "not-run"
 
 
+def test_release_manifest_records_multiple_installers_and_slices(tmp_path):
+    _create_dist_tree(tmp_path)
+    standard = tmp_path / "ConsensusTranslationAgent-Setup-standard.exe"
+    full = tmp_path / "ConsensusTranslationAgent-Setup-full.exe"
+    full_slice = tmp_path / "ConsensusTranslationAgent-Setup-full-1.bin"
+    standard.write_bytes(b"standard")
+    full.write_bytes(b"full")
+    full_slice.write_bytes(b"slice")
+
+    result = build_desktop_release_package(
+        tmp_path,
+        version="2026.06.18",
+        channel="portable",
+        installer_path=[standard, full],
+    )
+
+    manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+    installers = manifest["artifacts"]["installers"]
+    assert [item["path"] for item in installers] == [
+        standard.name,
+        full.name,
+    ]
+    assert installers[0]["slices"] == []
+    assert installers[1]["slices"][0]["path"] == full_slice.name
+
+
 def test_installed_release_verifier_script_contract():
     script = (ROOT / "scripts" / "verify_installed_release.ps1").read_text(
         encoding="utf-8"

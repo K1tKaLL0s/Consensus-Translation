@@ -48,7 +48,7 @@ def _run_command(command: list[str]) -> CommandResult:
         capture_output=True,
         check=False,
         text=True,
-        timeout=8,
+        timeout=120,
     )
     return CommandResult(
         returncode=completed.returncode,

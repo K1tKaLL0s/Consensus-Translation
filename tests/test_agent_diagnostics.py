@@ -8,6 +8,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 
+from consensus_translation import agent_diagnostics
 from consensus_translation.agent_diagnostics import (
     CommandResult,
     diagnostic_report_payload,
@@ -103,6 +104,29 @@ def test_desktop_diagnostics_reports_ready_runtime_with_manual_gui_warning(tmp_p
     assert report.counts["ok"] == 5
     assert report.counts["warning"] == 1
     assert report.counts["error"] == 0
+
+
+def test_command_runner_allows_slow_optional_sidecars(monkeypatch):
+    captured = {}
+
+    def fake_run(command, capture_output, check, text, timeout):
+        captured["command"] = command
+        captured["timeout"] = timeout
+
+        class Result:
+            returncode = 0
+            stdout = "ok"
+            stderr = ""
+
+        return Result()
+
+    monkeypatch.setattr(agent_diagnostics.subprocess, "run", fake_run)
+
+    result = agent_diagnostics._run_command(["comet-score", "--help"])
+
+    assert result.returncode == 0
+    assert captured["command"] == ["comet-score", "--help"]
+    assert captured["timeout"] >= 60
 
 
 def test_installed_diagnostics_does_not_require_build_tooling(tmp_path):

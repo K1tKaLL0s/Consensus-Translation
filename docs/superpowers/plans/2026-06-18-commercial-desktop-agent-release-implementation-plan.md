@@ -807,7 +807,7 @@ git commit -m "release: add installer acceptance and release evidence"
 - Modify: `docs/worklog_zh.md`
 - Generated only: `release/**`, `.acceptance/**`
 
-- [ ] **Step 1: Run the full hermetic test suite**
+- [x] **Step 1: Run the full hermetic test suite**
 
 ```powershell
 E:\Ana\python.exe -m pytest -q -p no:cacheprovider --basetemp '.pytest_tmp_runtime\final-release'
@@ -815,14 +815,14 @@ E:\Ana\python.exe -m pytest -q -p no:cacheprovider --basetemp '.pytest_tmp_runti
 
 Expected: zero failures. Record warning count and exact warning causes; do not hide new warnings.
 
-- [ ] **Step 2: Build all deliverables**
+- [x] **Step 2: Build all deliverables**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\build_desktop_release.ps1
 powershell -ExecutionPolicy Bypass -File .\build_installer.ps1 -RuntimePayload 'E:\Cn-Jp Translate\.runtime' -Channel full
 ```
 
-- [ ] **Step 3: Run source, portable, and installed acceptance**
+- [x] **Step 3: Run source, portable, and installed acceptance**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\run_desktop_acceptance.ps1 -OutputDir '.acceptance\source-final'
@@ -831,11 +831,11 @@ powershell -ExecutionPolicy Bypass -File .\scripts\verify_installed_release.ps1 
 
 Also run Qt offscreen workflow tests and one visible GUI launch/manual interaction pass. Real remote providers remain disabled; use static provider contract tests only.
 
-- [ ] **Step 4: Audit the design requirements line by line**
+- [x] **Step 4: Audit the design requirements line by line**
 
 For every item in `docs/superpowers/specs/2026-06-18-commercial-desktop-agent-release-design.md` section 9, link the authoritative report, command output, artifact, or manual evidence. Any missing evidence keeps the goal incomplete.
 
-- [ ] **Step 5: Update worklog and commit**
+- [x] **Step 5: Update worklog and commit**
 
 ```powershell
 git add docs/worklog_zh.md
