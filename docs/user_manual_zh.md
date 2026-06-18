@@ -39,7 +39,7 @@ ConsensusTranslationAgent.exe --diagnostics --project-root <项目或解压根�
 `--data-dir` 会把 SQLite 与凭据文件位置切换到指定目录，适合 `%LOCALAPPDATA%` 不可写或要求所有运行数据位于 E 盘的环境。诊断只有出现 `error` 才返回非零；缺少可选 provider/COMET 或人工 GUI smoke 会保留为 warning。
 
 ## Local Acceptance Smoke 本地验收（2026-06-17）
-- 桌面原型新增 `Run Local Smoke` 按钮，用于在没有远端 API、OCR、COMET 的情况下验证核心 agent 闭环。
+- PySide6 桌面端提供 `Run Local Smoke` 入口，用于在没有远端 API、OCR、COMET 的情况下验证核心 agent 闭环。
 - 该 smoke 会使用本地 echo provider 运行一次强制分段任务，覆盖上下文估算、当前片段、待续片段、续译 brief、拼接核验和 artifact 导出。
 - 结果会显示在预检列表中，并把验收 artifact 写入本机桌面数据目录下的 `acceptance` 文件夹。
 - 源码环境可运行 `powershell -ExecutionPolicy Bypass -File .\run_desktop_acceptance.ps1`，默认输出 `.acceptance/local-acceptance-report.json`。
@@ -47,7 +47,7 @@ ConsensusTranslationAgent.exe --diagnostics --project-root <项目或解压根�
 - 该 smoke 只能证明核心 workflow 可运行；真实翻译质量、真实远端模型和 GUI 手工体验仍需单独验收。OCR 另有 E 盘 Tesseract 真实 smoke 记录。
 
 ## Delivery Diagnostics 交付诊断（2026-06-17）
-- 桌面原型新增 `Run Diagnostics` 按钮，用于在软件内检查当前交付环境。
+- PySide6 桌面端提供 `Run Diagnostics` 页面，用于在软件内检查当前交付环境。
 - 诊断内容包括：桌面入口与打包文件、release exe、Tesseract OCR、COMET runtime、已启用 provider 配置与本机凭据、GUI 手工启动 smoke。
 - 缺少打包或 release 产物会显示为 `error`；Tesseract、COMET、远端 provider 凭据和 GUI 手工启动属于外部/可选条件，缺失时显示为 `warning`。
 - 该诊断不替代真实翻译质量验收，也不会调用远端 provider；远端可用性仍需在保存并加载 provider 后点击 `Smoke Providers` 单独探活。
@@ -56,19 +56,19 @@ ConsensusTranslationAgent.exe --diagnostics --project-root <项目或解压根�
 
 - 可运行 `powershell -ExecutionPolicy Bypass -File .\build_desktop_release.ps1` 生成桌面 portable zip。
 - 输出位于 `release/ConsensusTranslationAgent-<version>-portable.zip`，同时生成 `release-manifest.json`。
-- manifest 记录 exe 和 zip 的 SHA256、文件大小、包含文档、OCR/API/COMET 等可选外部依赖，以及当前未包含的代码签名、安装器、自动更新。
-- 当前交付形态是 portable 包：解压后运行 `ConsensusTranslationAgent.exe`。正式安装器和签名仍属于后续发布工作。
+- manifest 记录 exe、zip、installer 的 SHA256、文件大小、包含文档、OCR/API/COMET runtime 验证、license profile，以及当前未包含的代码签名、自动更新和真实远端 API 联调。
+- 当前交付形态包括：portable zip、标准 Inno Setup 安装包，以及内置 E 盘 Tesseract/COMET runtime 的 full 分卷安装包。安装器支持用户选择安装路径，并可创建桌面快捷方式；代码签名仍属于后续发布工作。
 
 ## HOOK/OCR 输入插件说明（2026-06-17）
 
-- 桌面原型新增 `Open OCR Image`：选择 `png/jpg/jpeg/bmp/webp/tif/tiff` 后，系统调用 OCR 插件提取文字并填入源文本框，随后可按普通文本运行 Agent。
+- PySide6 桌面端提供 OCR 图片入口：选择 `png/jpg/jpeg/bmp/webp/tif/tiff` 后，系统调用 OCR 插件提取文字并填入源文本框，随后可按普通文本运行 Agent。
 - OCR 默认调用本机 `tesseract` 命令行；如果系统未安装 Tesseract，会在预检列表中显示错误，不影响 `txt/md/docx` 输入。
-- 桌面原型新增 `Import Hook Text`：当前实现从剪贴板导入文本，经 `hook-buffer` 插件进入源文本框；它是受控缓冲入口，不做进程注入。
+- PySide6 桌面端支持 Hook/剪贴板文本和文件夹 inbox 输入，经受控插件进入源文本框；它是受控缓冲入口，不做进程注入。
 - 外部 HOOK 工具（例如 Textractor 类工具）后续可以把捕获文本写入该缓冲入口，再交给同一套术语记忆、候选翻译、裁决和续译 workflow。
 
 ## Provider Smoke 探活说明（2026-06-17）
 
-- 桌面原型的 provider 配置区新增 `Smoke Providers` 按钮。
+- PySide6 桌面端的 provider 配置区提供 `Smoke Providers` 按钮。
 - 使用流程：填写并保存 Provider ID、Base URL、Model、API Key 后，点击 `Load Providers`，再点击 `Smoke Providers`。
 - 若顶部 `API` 开关未开启，远端 provider smoke 会显示 `api disabled`，不会发起远端请求。
 - Smoke 会对当前已加载 provider 发送一个很短的样例翻译请求，并在远端预检列表中显示 `OK` 或 `FAIL`、延迟、token、成本和译文预览。
@@ -259,7 +259,7 @@ powershell -ExecutionPolicy Bypass -File .\run_streamlit.ps1
 - `self_iterative`：自迭代模式，要求训练集与验证集，最多三轮；每轮使用验证集评分，低于阈值继续，三轮后仍失败则进入人工复核。
 - `self_decision`：自决策模式，由 `MetaPolicyAgent` 根据训练/验证覆盖、API 开关和预算选择学习门控或自迭代，并在 trace 中记录原因。
 
-该原型当前服务于批量 `txt/md/docx` 文本、上下文预算续译、SQLite 词库记忆、远端调用预检、人工确认控制层与 provider adapter 验证。代码层已有 OpenAI-compatible provider 边界、本机凭据 store、provider 配置持久化、项目配置持久化、OCR 图片输入、Hook 文本缓冲输入、provider smoke 和交付诊断；真实进程注入式 hook、真实用户密钥下的远端 API 联调、安装器/签名/自动更新仍为后续任务。
+该桌面端当前服务于批量 `txt/md/docx` 文本、上下文预算续译、SQLite 词库记忆、远端调用预检、人工确认控制层与 provider adapter 验证。代码层已有 OpenAI-compatible provider 边界、本机凭据 store、provider 配置持久化、项目配置持久化、OCR 图片输入、Hook 文本缓冲输入、文件夹 inbox、provider smoke、交付诊断和安装器；真实进程注入式 hook、真实用户密钥下的远端 API 联调、签名/自动更新仍为后续任务。
 
 桌面端原型可通过以下命令启动：
 
@@ -277,7 +277,7 @@ Agent 运行时会按 topic 从 SQLite 词库查询当前文本命中的 `terms`
 
 Provider 配置保存在 SQLite `provider_configs` 表中，包含 provider id、类型、base URL、模型、credential id、估算成本和启用状态。API key 不写入该表，只通过本机加密凭据 store 按 `credential_id` 读取；桌面控制器可从 store 加载所有启用 provider。
 
-桌面项目配置保存在 SQLite `project_profile` 表中，包含 source/target/topic/mode、上下文预算、API 开关、预算限制、远端确认开关和最近文件。默认桌面数据库路径为 `%LOCALAPPDATA%\ConsensusTranslation\agent.sqlite3`。基础 Tkinter 壳已经支持打开 `txt/md/docx` 文件、载入首个文件文本、记录最近文件和保存当前项目配置。
+桌面项目配置保存在 SQLite `project_profile` 表中，包含 source/target/topic/mode、上下文预算、API 开关、预算限制、远端确认开关和最近文件。默认桌面数据库路径为 `%LOCALAPPDATA%\ConsensusTranslation\agent.sqlite3`；安装验收和 portable 场景也支持显式 `--data-dir`。PySide6 壳支持打开 `txt/md/docx` 文件、载入首个文件文本、记录最近文件和保存当前项目配置。
 
 旧版 JSON 词库可迁移到桌面 SQLite store：
 
@@ -333,7 +333,7 @@ E:\Ana\python.exe -m pip install sacremoses
 
 ## 12. 桌面导出包说明（原型）
 
-- 在桌面原型中运行一次 Agent 后，可点击 `Export Artifacts`。
+- 在 PySide6 桌面端运行一次 Agent 后，可点击 `Export Artifacts`。
 - 导出目录会生成五类文件：最终译文 txt、续译 brief、拼接核验 JSON、分段审计 JSON、manifest JSON。
 - manifest 用于复核本次任务的上下文估算、切片数量、待续片段数量、任务 id、run id、配置摘要和核验状态。
 - 该导出包适合作为人工复核、后续修订和问题定位的交付材料。
@@ -350,11 +350,11 @@ powershell -ExecutionPolicy Bypass -File .\build_desktop_agent.ps1
 ```
 
 - 构建成功后，桌面程序位于 `dist\ConsensusTranslationAgent\ConsensusTranslationAgent.exe`。
-- 当前产物是 one-folder 桌面包；安装器、签名、自动更新仍属于后续发布工作。
+- 当前产物包括 one-folder 桌面包、portable zip、标准安装器和 full runtime 分卷安装器；签名和自动更新仍属于后续发布工作。
 
 ## 14. Provider 设置说明（原型）
 
-- 桌面原型顶部提供 Provider ID、Base URL、Model、API Key、Cost、Enabled 控件。
+- PySide6 桌面端提供 Provider ID、Base URL、Model、API Key、Cost、Enabled 控件。
 - 点击 `Save Provider` 会保存 OpenAI-compatible provider 配置。
 - 点击 `Load Providers` 会加载所有已启用 provider，后续 `Run Agent` 和 `Preview Remote Calls` 会使用这些 provider。
 - API key 不保存到 SQLite provider 配置表；SQLite 只保存 `credential_id`，真实密钥存入本机 credential store。

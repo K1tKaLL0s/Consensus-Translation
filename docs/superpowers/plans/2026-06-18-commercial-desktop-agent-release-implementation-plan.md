@@ -768,7 +768,7 @@ git commit -m "build: add selectable Windows installer and shortcuts"
 - Modify: `docs/user_manual_zh.md`
 - Test: `tests/test_agent_release.py`
 
-- [ ] **Step 1: Write failing release-manifest tests**
+- [x] **Step 1: Write failing release-manifest tests**
 
 ```python
 def test_release_manifest_records_installer_and_license_profile(tmp_path):
@@ -785,15 +785,15 @@ def test_release_manifest_records_installer_and_license_profile(tmp_path):
     assert "code-signing" in manifest["not_included"]
 ```
 
-- [ ] **Step 2: Implement release evidence**
+- [x] **Step 2: Implement release evidence**
 
 Manifest records exe, portable ZIP, standard/full installer, hashes, runtime versions, OCR languages, COMET model, engine/license profile, included help/docs, unsigned status, and verification report paths. The release checklist distinguishes automated evidence from target-machine manual GUI/signing checks.
 
-- [ ] **Step 3: Install to a non-default E path and verify**
+- [x] **Step 3: Install to a non-default E path and verify**
 
 Use an isolated path such as `E:\Cn-Jp Translate\.acceptance\installed-release` and silent installer parameters that match interactive choices. Verify files, runtime root, data root, desktop shortcut target, start-menu entry, installed diagnostics, local smoke, help resources, and uninstaller. Do not delete outside `.acceptance`; verify resolved paths before uninstall cleanup.
 
-- [ ] **Step 4: Run focused tests and commit**
+- [x] **Step 4: Run focused tests and commit**
 
 ```powershell
 E:\Ana\python.exe -m pytest -q tests\test_agent_release.py tests\test_installer_definition.py

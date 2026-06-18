@@ -80,7 +80,13 @@ def test_build_desktop_release_package_writes_manifest_and_zip(tmp_path):
     assert manifest["included_scripts"] == ["install_optional_runtimes.ps1"]
     assert manifest["external_requirements"]["ocr"] == "optional-tesseract-cli"
     assert manifest["external_requirements"]["remote_api"] == "optional-openai-compatible-provider"
-    assert manifest["not_included"] == ["code-signing", "installer", "auto-update"]
+    assert manifest["license_profile"] == "portable-dev"
+    assert manifest["not_included"] == [
+        "code-signing",
+        "installer",
+        "auto-update",
+        "live-remote-provider-validation",
+    ]
 
     with zipfile.ZipFile(result.zip_path) as archive:
         names = sorted(archive.namelist())
@@ -106,7 +112,46 @@ def test_desktop_release_script_exists_and_invokes_release_module():
     )
 
     assert "consensus_translation.agent_release" in script
-    assert "build_desktop_agent.ps1" in script
+    assert "build_desktop_qt.ps1" in script
     assert acceptance_script.lstrip().startswith("param(")
     assert "consensus_translation.agent_acceptance" in acceptance_script
     assert "--report-json" in acceptance_script
+
+
+def test_release_manifest_records_installer_and_license_profile(tmp_path):
+    _create_dist_tree(tmp_path)
+    installer = tmp_path / "ConsensusTranslationAgent-Setup.exe"
+    installer.write_bytes(b"setup")
+
+    result = build_desktop_release_package(
+        tmp_path,
+        version="2026.06.18",
+        channel="full",
+        license_profile="commercial-safe",
+        installer_path=installer,
+    )
+
+    manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+    assert manifest["license_profile"] == "commercial-safe"
+    assert manifest["artifacts"]["installer"]["path"] == installer.name
+    assert manifest["artifacts"]["installer"]["sha256"]
+    assert manifest["artifacts"]["installer"]["bytes"] == installer.stat().st_size
+    assert "code-signing" in manifest["not_included"]
+    assert "installer" not in manifest["not_included"]
+    assert manifest["runtime_verification"]["status"] == "not-run"
+
+
+def test_installed_release_verifier_script_contract():
+    script = (ROOT / "scripts" / "verify_installed_release.ps1").read_text(
+        encoding="utf-8"
+    )
+
+    assert "-InstallerPath" in script
+    assert "-InstallDir" in script
+    assert "/VERYSILENT" in script
+    assert "/DIR=" in script
+    assert "/TASKS=desktopicon" in script
+    assert "--diagnostics-mode" in script
+    assert "--local-smoke" in script
+    assert "GetFolderPath('Desktop')" in script
+    assert "UninstallString" in script

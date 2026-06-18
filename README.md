@@ -19,33 +19,33 @@
 
 ## Phase-3 Local Acceptance Smoke（2026-06-17）
 - 新增 `agent_acceptance.py`，提供不依赖远端 API、OCR 或 COMET 的离线验收 smoke。
-- Tkinter 桌面原型新增 `Run Local Smoke` 按钮；它会运行一次强制分段的本地 agent workflow，覆盖上下文估算、当前/待续切片、续译 brief、拼接核验和 artifact 导出。
+- PySide6 桌面端提供 `Run Local Smoke` 入口；它会运行一次强制分段的本地 agent workflow，覆盖上下文估算、当前/待续切片、续译 brief、拼接核验和 artifact 导出。
 - 默认 artifact 会写入本机桌面数据目录下的 `acceptance` 文件夹，用于确认目标机器至少能完成核心 agent 闭环。
 - 也可运行 `powershell -ExecutionPolicy Bypass -File .\run_desktop_acceptance.ps1`，在不打开 GUI 的情况下生成 `.acceptance/local-acceptance-report.json`。
 - 发布后的桌面入口支持 `ConsensusTranslationAgent.exe --local-smoke --acceptance-dir <dir> --report-json <file>`，用于目标机器上的无窗口验收。
 
 ## Phase-3 Delivery Diagnostics（2026-06-17）
 - 新增 `agent_diagnostics.py`，把桌面打包文件、release exe、Tesseract OCR、COMET runtime、provider 配置/凭据和 GUI 手工 smoke 统一成可展示的诊断报告。
-- `DesktopAgentController.run_diagnostics` 已接入该报告；Tkinter 桌面原型新增 `Run Diagnostics` 按钮，诊断结果显示在预检列表中。
+- `DesktopAgentController.run_diagnostics` 已接入该报告；PySide6 桌面端提供 `Run Diagnostics` 页面，诊断结果显示在应用内。
 - 诊断报告会把缺少打包/release 产物标为 `error`，把可选外部能力（Tesseract、COMET、provider 凭据、GUI 手工启动）标为 `warning`，避免把外部环境缺口误判为核心 workflow 失败。
 
 ## Phase-3 Portable Release 包（2026-06-17）
 
 - 新增 `agent_release.py` 与 `build_desktop_release.ps1`，可在构建 one-folder exe 后生成 `release/ConsensusTranslationAgent-<version>-portable.zip`。
 - Release manifest 会记录版本、渠道、入口 exe、exe/zip SHA256、包含文档、可选外部依赖和未包含事项。
-- 当前 release 是 portable zip 交付包，不是安装器；代码签名、安装器和自动更新仍未包含。
+- 当前 release 同时支持 portable zip、标准 Inno Setup 安装包和内置 OCR/COMET runtime 的 full 分卷安装包；代码签名和自动更新仍未包含。
 
 ## Phase-3 HOOK/OCR 输入插件（2026-06-17）
 
 - 新增 `agent_input_plugins.py`，提供统一输入插件契约、OCR 图片插件和 HOOK 文本缓冲插件。
-- Tkinter 桌面原型新增 `Open OCR Image` 与 `Import Hook Text` 按钮；OCR 输入和 hook/剪贴板输入都会进入同一个 agent translation workflow。
+- PySide6 桌面端保留 OCR、文件夹 inbox 和 hook/剪贴板输入入口；这些输入都会进入同一个 agent translation workflow。
 - OCR 默认通过本机 `tesseract` 命令行执行，也支持测试或后续插件注入自定义 OCR 函数；未安装 Tesseract 时会返回明确错误，不影响普通文本/docx 输入。
 - 当前 HOOK 是安全的文本缓冲入口，不做进程注入；后续可接 Textractor/LunaTranslator 类外部 hook 工具输出。
 
 ## Phase-3 Provider Smoke 探活（2026-06-17）
 
 - 新增 `agent_provider_smoke.py`，用于对当前 provider 列表执行最小样例翻译探活。
-- Tkinter 桌面原型新增 `Smoke Providers` 按钮；它会使用当前源语、目标语和 topic，发送最多 200 字符的样例文本，并在远端预检列表中显示成功/失败、延迟、token、成本和译文预览。
+- PySide6 桌面端提供 provider 配置和 `Smoke Providers` 入口；它会使用当前源语、目标语和 topic，发送最小样例文本，并在远端预检列表中显示成功/失败、延迟、token、成本和译文预览。
 - `api_enabled=False` 时，远端 provider smoke 会返回 `api disabled`，不会发起远端请求。
 - Smoke 探活不写入正式 agent run、不写入词库，也不替代完整翻译质量验收；它只用于确认已保存并加载的 provider 端点、模型名和凭据是否可用。
 
@@ -54,14 +54,14 @@
 ## 当前状态
 
 - 分支：`codex/desktop-agent-core`
-- 运行形态：Streamlit 验证台 + Tkinter portable 桌面 Agent
+- 运行形态：Streamlit 验证台 + PySide6 可安装桌面 Agent
 - 翻译引擎：
   - Engine A: Marian（Opus-MT）
   - Engine B: Meta NLLB-200
 - 阶段结论：
   - 第二阶段已完成（M1/M2/M3/M4 + Gate-L + UI-Backend Contract Gate）
   - 第三阶段 Agent 核心原型已落地：契约、provider adapter、三种运行模式策略、SQLite 审计与确认门控
-  - Streamlit UI 仍作为验证台；桌面端 Tkinter Agent、训练/验证集入口、HOOK/OCR、provider 配置、COMET sidecar、诊断和 portable release 已落地；真实外部 API 联调按用户要求延期，真实进程 hook、安装器/签名/自动更新仍属后续发布工程
+  - Streamlit UI 仍作为验证台；桌面端 PySide6 Agent、训练/验证集入口、HOOK/OCR/文件夹 inbox、provider 配置、COMET sidecar、诊断、portable release 和 Inno Setup 安装器已落地；真实外部 API 联调按用户要求延期，真实进程 hook、签名和自动更新仍属后续发布工程
 
 ## 快速开始
 
@@ -107,13 +107,13 @@ powershell -ExecutionPolicy Bypass -File .\run_streamlit.ps1
 
 ## 桌面端原型入口
 
-当前桌面端入口采用 Python 标准库 Tkinter，避免额外安装桌面 UI 依赖：
+当前正式桌面端入口采用 PySide6；源码环境可直接运行：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\run_desktop_agent.ps1
+powershell -ExecutionPolicy Bypass -File .\run_desktop_qt.ps1
 ```
 
-该入口用于验证桌面软件形态；controller 已支持文本、单文件、多文件任务、项目配置保存、最近文件、远端调用预检、候选列表、审计 run 列表、待确认词库提案、人工确认写回、provider 配置/探活、OCR/Hook 文本输入、artifact 导出和交付诊断。打包安装器、代码签名、自动更新、真实进程 hook 和带用户密钥的远端 API 联调仍按后续路线推进。
+该入口用于验证桌面软件形态；controller 已支持文本、单文件、多文件任务、项目配置保存、最近文件、远端调用预检、候选列表、审计 run 列表、待确认词库提案、人工确认写回、provider 配置/探活、OCR/Hook/文件夹 inbox 文本输入、artifact 导出和交付诊断。安装器已支持用户选择安装目录和桌面快捷方式；代码签名、自动更新、真实进程 hook 和带用户密钥的远端 API 联调仍按后续路线推进。
 
 ## 旧词库迁移
 
@@ -152,23 +152,23 @@ powershell -ExecutionPolicy Bypass -File .\migrate_legacy_lexicon.ps1 --source .
 
 - 新增 `agent_artifacts.py`，可把一次上下文托管翻译导出为桌面可交付 artifact 包。
 - 导出内容包括 `*.translation.txt`、`*.brief.md`、`*.verification.json`、`*.segments.json`、`*.manifest.json`。
-- Tkinter 桌面原型新增 `Export Artifacts` 按钮，运行一次 Agent 后可把最终译文、续译 brief、拼接核验和分段审计写入用户选择的目录。
+- PySide6 桌面端提供 artifact 导出入口，运行一次 Agent 后可把最终译文、续译 brief、拼接核验和分段审计写入用户选择的目录。
 
 ## Phase-3 Windows 打包入口（2026-06-17）
 
 - 新增 `requirements-desktop.txt`，将 PyInstaller 作为桌面打包可选依赖。
 - 新增 `agent_packaging.py`，提供桌面打包预检，检查入口文件、spec、构建脚本、桌面依赖和 PyInstaller 是否可用。
-- 新增 `packaging/desktop_agent.spec` 与 `build_desktop_agent.ps1`，用于构建 `ConsensusTranslationAgent` Tkinter 桌面原型。
+- 新增 `packaging/desktop_agent_qt.spec` 与 `build_desktop_qt.ps1`，用于构建 `ConsensusTranslationAgent` PySide6 桌面应用。
 
 ```powershell
 E:\Ana\python.exe -m pip install -r requirements-desktop.txt
-powershell -ExecutionPolicy Bypass -File .\build_desktop_agent.ps1
+powershell -ExecutionPolicy Bypass -File .\build_desktop_qt.ps1
 ```
 
-该入口依据 PyInstaller 官方 spec 文件工作流组织，当前用于生成 Windows one-folder 桌面包；正式安装器仍属于后续发布工作。
+该入口依据 PyInstaller 官方 spec 文件工作流组织，当前用于生成 Windows one-folder 桌面包；`build_installer.ps1` 可生成标准安装包和带 OCR/COMET runtime 的 full 分卷安装包。
 
 ## Phase-3 Provider 设置入口（2026-06-17）
 
-- Tkinter 桌面原型新增 Provider ID、Base URL、Model、API Key、Cost、Enabled 控件。
+- PySide6 桌面端新增 Provider ID、Base URL、Model、API Key、Cost、Enabled 控件。
 - 新增 `Save Provider` 与 `Load Providers` 按钮，可把 OpenAI-compatible provider 配置保存到 SQLite，并从本机 credential store 加载启用 provider。
 - API key 不写入 `provider_configs`，只保存到本机凭据文件；SQLite 中只保存 `credential_id`。

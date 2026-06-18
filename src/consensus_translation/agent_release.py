@@ -28,6 +28,7 @@ class DesktopReleaseBuild:
     zip_path: Path
     exe_sha256: str
     zip_sha256: str
+    installer_sha256: str | None = None
 
 
 def _sha256_file(path: Path) -> str:
@@ -36,6 +37,22 @@ def _sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _file_artifact(path: Path, root: Path | None = None) -> dict[str, object]:
+    artifact_path = Path(path).resolve()
+    if root is not None:
+        try:
+            display_path = str(artifact_path.relative_to(root)).replace("\\", "/")
+        except ValueError:
+            display_path = artifact_path.name
+    else:
+        display_path = artifact_path.name
+    return {
+        "path": display_path,
+        "sha256": _sha256_file(artifact_path),
+        "bytes": artifact_path.stat().st_size,
+    }
 
 
 def check_desktop_release_ready(project_root: str | Path) -> DesktopReleasePreflight:
@@ -86,6 +103,37 @@ def _script_paths(root: Path) -> list[Path]:
     return [path for path in candidates if path.exists()]
 
 
+def _runtime_verification_payload(root: Path) -> dict[str, object]:
+    report_path = root / ".runtime" / "runtime-verification.json"
+    if not report_path.is_file():
+        return {"status": "not-run"}
+    try:
+        payload = json.loads(report_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {
+            "status": "invalid-report",
+            "report_path": str(report_path.relative_to(root)).replace("\\", "/"),
+        }
+    ok = bool(payload.get("ok"))
+    return {
+        "status": "ok" if ok else "failed",
+        "report_path": str(report_path.relative_to(root)).replace("\\", "/"),
+        "tesseract_version": payload.get("tesseract_version", ""),
+        "ocr_languages": payload.get("ocr_languages", []),
+        "comet_cli_ok": bool(payload.get("comet_cli_ok")),
+        "comet_model_ok": bool(payload.get("comet_model_ok")),
+        "comet_score": payload.get("comet_score"),
+    }
+
+
+def _installer_artifact_payload(installer_path: Path, root: Path) -> dict[str, object]:
+    installer = Path(installer_path).resolve()
+    payload = _file_artifact(installer, root)
+    slice_paths = sorted(installer.parent.glob(f"{installer.stem}-*.bin"))
+    payload["slices"] = [_file_artifact(path, root) for path in slice_paths]
+    return payload
+
+
 def _write_zip(
     app_dir: Path,
     docs: list[Path],
@@ -112,6 +160,8 @@ def build_desktop_release_package(
     project_root: str | Path,
     version: str,
     channel: str = "portable",
+    license_profile: str = "portable-dev",
+    installer_path: str | Path | None = None,
 ) -> DesktopReleaseBuild:
     root = Path(project_root).resolve()
     preflight = check_desktop_release_ready(root)
@@ -131,10 +181,24 @@ def build_desktop_release_package(
     zip_path = preflight.release_dir / f"{release_name}.zip"
     manifest_path = release_dir / "release-manifest.json"
 
+    installer_artifact = (
+        _installer_artifact_payload(Path(installer_path), root)
+        if installer_path is not None
+        else None
+    )
+    not_included = [
+        "code-signing",
+        "auto-update",
+        "live-remote-provider-validation",
+    ]
+    if installer_artifact is None:
+        not_included.insert(1, "installer")
+
     manifest = {
         "app_name": "ConsensusTranslationAgent",
         "version": version,
         "channel": channel,
+        "license_profile": license_profile,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "entrypoint": "ConsensusTranslationAgent.exe",
         "artifacts": {
@@ -159,8 +223,11 @@ def build_desktop_release_package(
             "remote_api": "optional-openai-compatible-provider",
             "comet": "optional-comet-runtime",
         },
-        "not_included": ["code-signing", "installer", "auto-update"],
+        "runtime_verification": _runtime_verification_payload(root),
+        "not_included": not_included,
     }
+    if installer_artifact is not None:
+        manifest["artifacts"]["installer"] = installer_artifact
     manifest_path.write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True),
         encoding="utf-8",
@@ -185,6 +252,9 @@ def build_desktop_release_package(
         zip_path=zip_path,
         exe_sha256=exe_sha256,
         zip_sha256=final_zip_sha256,
+        installer_sha256=(
+            str(installer_artifact["sha256"]) if installer_artifact is not None else None
+        ),
     )
 
 
@@ -194,12 +264,16 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--version", default=datetime.now().strftime("%Y.%m.%d"))
     parser.add_argument("--channel", default="portable")
+    parser.add_argument("--license-profile", default="portable-dev")
+    parser.add_argument("--installer-path")
     args = parser.parse_args()
 
     result = build_desktop_release_package(
         Path.cwd(),
         version=args.version,
         channel=args.channel,
+        license_profile=args.license_profile,
+        installer_path=args.installer_path,
     )
     print(f"desktop-release-ok: {result.zip_path}")
     print(f"manifest: {result.manifest_path}")

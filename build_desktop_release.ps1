@@ -8,13 +8,27 @@ if (-not (Test-Path -LiteralPath $python)) {
 $root = Get-Location
 $env:PYTHONPATH = Join-Path $root "src"
 
-& powershell -ExecutionPolicy Bypass -File ".\build_desktop_agent.ps1"
+& powershell -ExecutionPolicy Bypass -File ".\build_desktop_qt.ps1"
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
 $version = Get-Date -Format "yyyy.MM.dd"
-& $python -m consensus_translation.agent_release --version $version --channel portable
+$releaseArgs = @(
+    "-m",
+    "consensus_translation.agent_release",
+    "--version",
+    $version,
+    "--channel",
+    "portable",
+    "--license-profile",
+    "commercial-safe"
+)
+$standardInstaller = Join-Path $root "release\ConsensusTranslationAgent-Setup-standard.exe"
+if (Test-Path -LiteralPath $standardInstaller) {
+    $releaseArgs += @("--installer-path", $standardInstaller)
+}
+& $python @releaseArgs
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
