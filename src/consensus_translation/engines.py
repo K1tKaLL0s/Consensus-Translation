@@ -6,6 +6,15 @@ from typing import Any
 import requests
 
 
+OPUS_DIRECT_MODELS = {
+    ("zh", "en"): "Helsinki-NLP/opus-mt-zh-en",
+    ("en", "zh"): "Helsinki-NLP/opus-mt-en-zh",
+    ("ja", "en"): "Helsinki-NLP/opus-mt-ja-en",
+    ("en", "ja"): "Helsinki-NLP/opus-mt-en-jap",
+    ("zh", "ja"): "Helsinki-NLP/opus-mt-tc-big-zh-ja",
+}
+
+
 class LocalEngineA:
     engine_name = "marian-opus-mt"
 
@@ -52,15 +61,24 @@ class LocalEngineA:
         if source == target:
             return text
 
-        direct_model = f"Helsinki-NLP/opus-mt-{source}-{target}"
-        try:
-            return self._run_model(text, direct_model)
-        except Exception:
-            if source == "en" or target == "en":
-                raise
+        direct_model = OPUS_DIRECT_MODELS.get((source, target))
+        if direct_model is not None:
+            try:
+                return self._run_model(text, direct_model)
+            except Exception:
+                if source == "en" or target == "en":
+                    raise
+        elif source == "en" or target == "en":
+            raise RuntimeError(
+                f"No commercial OPUS model for {source}->{target}"
+            )
 
-        pivot_model = f"Helsinki-NLP/opus-mt-{source}-en"
-        target_model = f"Helsinki-NLP/opus-mt-en-{target}"
+        pivot_model = OPUS_DIRECT_MODELS.get((source, "en"))
+        target_model = OPUS_DIRECT_MODELS.get(("en", target))
+        if pivot_model is None or target_model is None:
+            raise RuntimeError(
+                f"No commercial OPUS pivot route for {source}->{target}"
+            )
         pivot_text = self._run_model(text, pivot_model)
         return self._run_model(pivot_text, target_model)
 
@@ -69,7 +87,50 @@ class LocalEngineA:
         return translated, 0.66
 
 
-class LocalEngineB:
+class LocalEngineB(LocalEngineA):
+    engine_name = "marian-opus-pivot"
+
+    def _translate_with_pivot(
+        self,
+        text: str,
+        source_lang: str,
+        target_lang: str,
+    ) -> str:
+        source = self._normalize_lang(source_lang)
+        target = self._normalize_lang(target_lang)
+        if source == target:
+            return text
+        if source == "en" or target == "en":
+            model_name = OPUS_DIRECT_MODELS.get((source, target))
+            if model_name is None:
+                raise RuntimeError(
+                    f"No commercial OPUS model for {source}->{target}"
+                )
+            return self._run_model(text, model_name)
+        pivot_model = OPUS_DIRECT_MODELS.get((source, "en"))
+        target_model = OPUS_DIRECT_MODELS.get(("en", target))
+        if pivot_model is None or target_model is None:
+            raise RuntimeError(
+                f"No commercial OPUS pivot route for {source}->{target}"
+            )
+        pivot_text = self._run_model(text, pivot_model)
+        return self._run_model(pivot_text, target_model)
+
+    def translate(
+        self,
+        text: str,
+        source_lang: str,
+        target_lang: str,
+    ) -> tuple[str, float]:
+        translated = self._translate_with_pivot(
+            text,
+            source_lang,
+            target_lang,
+        )
+        return translated, 0.62
+
+
+class ResearchNllbEngine:
     engine_name = "meta-nllb-200"
 
     def __init__(self) -> None:

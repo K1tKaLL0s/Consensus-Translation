@@ -112,6 +112,47 @@ def test_local_job_marks_needs_review_when_scores_low(monkeypatch):
     assert result["needs_review"] is True
 
 
+def test_research_release_profile_uses_nllb_candidate(monkeypatch):
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineA.translate",
+        lambda _self, _text, _source, _target: ("opus", 0.8),
+    )
+    monkeypatch.setattr(
+        "consensus_translation.workflows.ResearchNllbEngine.translate",
+        lambda _self, _text, _source, _target: ("nllb", 0.7),
+    )
+
+    result = run_local_job(
+        text="你好",
+        source_lang="zh",
+        target_lang="en",
+        topic="general",
+        release_profile="research",
+    )
+
+    assert result["release_profile"] == "research"
+    assert result["cand_a"] == "opus"
+    assert result["cand_b"] == "nllb"
+
+
+def test_commercial_profile_deduplicates_identical_opus_candidates(monkeypatch):
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineA.translate",
+        lambda _self, _text, _source, _target: ("同じ訳", 0.8),
+    )
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineB.translate",
+        lambda _self, _text, _source, _target: ("同じ訳", 0.7),
+    )
+
+    result = run_local_job("相同结果", "zh", "ja", "general")
+
+    assert result["candidate_deduplicated"] is True
+    assert result["winner"] == "left"
+    assert result["final_text"] == "同じ訳"
+    assert result["decision_reason"] == "engine-duplicate-candidate"
+
+
 def test_local_job_applies_domain_adjustment_and_reports_trace_and_hits(monkeypatch):
     monkeypatch.setattr(
         "consensus_translation.workflows.LocalEngineA.translate",
