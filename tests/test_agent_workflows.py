@@ -17,6 +17,7 @@ from consensus_translation.agent_contracts import (
 )
 from consensus_translation.agent_evaluators import EvaluationResult
 from consensus_translation.agent_inputs import AgentInputDocument
+from consensus_translation.agent_meta_policy import MetaPolicyDecision
 from consensus_translation.agent_providers import LocalWorkflowProvider, StaticModelProvider
 from consensus_translation.agent_store import AgentRunStore
 from consensus_translation.agent_workflows import run_agent_batch_translation, run_agent_translation
@@ -364,6 +365,27 @@ def test_self_iterative_mode_uses_validation_score_to_continue_past_high_confide
     assert any(item.startswith("validation_score:round=1") for item in result.contract.trace)
 
 
+def test_workflow_rejects_mock_provider_without_explicit_allowance():
+    with pytest.raises(PermissionError, match="mock providers are disabled"):
+        run_agent_translation(
+            text="hello",
+            source_lang="en",
+            target_lang="zh",
+            topic="general",
+            mode=AgentMode.LEARNING,
+            providers=[
+                StaticModelProvider(
+                    "mock-a",
+                    "nihao",
+                    confidence=0.8,
+                    is_mock=True,
+                )
+            ],
+            api_enabled=False,
+            budget_limit=0.0,
+        )
+
+
 def test_self_iterative_mode_accepts_custom_evaluator_for_validation_scoring():
     provider = RoundAwareProvider(
         [
@@ -396,6 +418,44 @@ def test_self_iterative_mode_accepts_custom_evaluator_for_validation_scoring():
     assert result.contract.status == AgentRunStatus.FINALIZED
     assert "validation_evaluator:scripted-evaluator" in result.contract.trace
     assert "validation_score:round=2:overall=0.910000" in result.contract.trace
+
+
+def test_no_human_gate_run_needs_review_when_consensus_requires_review(monkeypatch):
+    def select_no_gate(self, training_text, validation_text, api_enabled, budget_limit, context):
+        return MetaPolicyDecision(
+            selected_mode=AgentMode.SELF_DECISION,
+            reason="test_no_gate",
+            validation_coverage=1.0,
+            risk_level="low",
+            requires_human_confirmation=False,
+            max_iterations=1,
+            budget_limit=budget_limit,
+            fallback_plan="test",
+        )
+
+    monkeypatch.setattr(
+        "consensus_translation.agent_workflows.MetaPolicyAgent.select_mode",
+        select_no_gate,
+    )
+
+    result = run_agent_translation(
+        text="hello",
+        source_lang="en",
+        target_lang="zh",
+        topic="general",
+        mode=AgentMode.SELF_DECISION,
+        providers=[
+            StaticModelProvider("local-a", "alpha", confidence=0.7),
+            StaticModelProvider("local-b", "beta", confidence=0.7),
+        ],
+        training_text="alpha beta gamma delta",
+        validation_text="alpha beta gamma delta",
+        api_enabled=True,
+        budget_limit=1.0,
+    )
+
+    assert result.contract.status == AgentRunStatus.NEEDS_REVIEW
+    assert "finalize_guard:decision_requires_human_review" in result.contract.trace
 
 
 def test_self_iterative_mode_needs_review_after_validation_fails_all_rounds():

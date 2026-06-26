@@ -61,6 +61,7 @@ def run_local_acceptance(
         context_budget=ContextBudget(max_context_tokens=7, reserved_output_tokens=2),
         api_enabled=False,
         budget_limit=0.0,
+        allow_mock_providers=True,
     )
     artifacts = export_translation_artifacts(
         result=result,

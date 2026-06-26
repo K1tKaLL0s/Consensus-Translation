@@ -129,7 +129,11 @@ def test_default_desktop_store_path_uses_local_app_data(monkeypatch, tmp_path):
 
 def test_desktop_agent_controller_runs_context_managed_translation():
     controller = DesktopAgentController(
-        DesktopAgentConfig(max_context_tokens=18, reserved_output_tokens=5),
+        DesktopAgentConfig(
+            max_context_tokens=18,
+            reserved_output_tokens=5,
+            allow_mock_providers=True,
+        ),
         providers=[EchoModelProvider("echo-local", prefix="JP:")],
     )
 
@@ -141,12 +145,30 @@ def test_desktop_agent_controller_runs_context_managed_translation():
     assert result.verification["order_preserved"] is True
 
 
+def test_desktop_agent_controller_blocks_mock_provider_by_default():
+    controller = DesktopAgentController(
+        DesktopAgentConfig(max_context_tokens=18, reserved_output_tokens=5),
+        providers=[EchoModelProvider("echo-local", prefix="JP:")],
+    )
+
+    try:
+        controller.translate_text("hello")
+    except PermissionError as exc:
+        assert "mock providers are disabled" in str(exc)
+    else:
+        raise AssertionError("mock provider should be blocked by default")
+
+
 def test_desktop_agent_controller_translates_file_and_persists_audit(tmp_path):
     source_file = tmp_path / "chapter.txt"
     source_file.write_text("第一段命运之轮转动。\n\n第二段利维坦苏醒。", encoding="utf-8")
     store = AgentRunStore(tmp_path / "agent.sqlite3")
     controller = DesktopAgentController(
-        DesktopAgentConfig(max_context_tokens=18, reserved_output_tokens=5),
+        DesktopAgentConfig(
+            max_context_tokens=18,
+            reserved_output_tokens=5,
+            allow_mock_providers=True,
+        ),
         providers=[EchoModelProvider("echo-local", prefix="JP:")],
         store=store,
     )
@@ -169,6 +191,7 @@ def test_desktop_agent_controller_exposes_audit_and_confirmation_actions(tmp_pat
             topic="western_myth",
             max_context_tokens=64,
             reserved_output_tokens=8,
+            allow_mock_providers=True,
         ),
         providers=[EchoModelProvider("echo-local", prefix="ZH:")],
         store=store,
@@ -297,6 +320,7 @@ def test_desktop_agent_controller_translates_multiple_files_in_order(tmp_path):
     first.write_text("第一段。", encoding="utf-8")
     second.write_text("第二段。", encoding="utf-8")
     controller = DesktopAgentController(
+        DesktopAgentConfig(allow_mock_providers=True),
         providers=[EchoModelProvider("echo-local", prefix="JP:")]
     )
 
@@ -310,7 +334,11 @@ def test_desktop_agent_controller_captures_and_translates_ocr_input(tmp_path):
     registry = InputPluginRegistry()
     registry.register(OcrImageInputPlugin(ocr_fn=lambda path, lang: "リヴァイアサン"))
     controller = DesktopAgentController(
-        DesktopAgentConfig(source_lang="ja", target_lang="zh"),
+        DesktopAgentConfig(
+            source_lang="ja",
+            target_lang="zh",
+            allow_mock_providers=True,
+        ),
         providers=[EchoModelProvider("echo-local", prefix="ZH:")],
         input_plugins=registry,
     )
@@ -327,6 +355,7 @@ def test_desktop_agent_controller_captures_hook_text_buffer():
     registry = InputPluginRegistry()
     registry.register(HookTextBufferPlugin())
     controller = DesktopAgentController(
+        DesktopAgentConfig(allow_mock_providers=True),
         providers=[EchoModelProvider("echo-local", prefix="ZH:")],
         input_plugins=registry,
     )
@@ -349,6 +378,7 @@ def test_desktop_agent_controller_exports_translation_artifacts(tmp_path):
             target_lang="zh",
             max_context_tokens=7,
             reserved_output_tokens=2,
+            allow_mock_providers=True,
         ),
         providers=[EchoModelProvider("echo-local", prefix="ZH:")],
     )

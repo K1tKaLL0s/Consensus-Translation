@@ -31,6 +31,27 @@ def _create_dist_tree(root: Path) -> None:
         "# runtime installer",
         encoding="utf-8",
     )
+    source_root = root / "src" / "consensus_translation"
+    source_root.mkdir(parents=True)
+    (source_root / "desktop_agent_app.py").write_text(
+        "\n".join(
+            [
+                "allow_mock_providers: bool = False",
+                "mock providers are disabled for production desktop runs",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (source_root / "agent_workflows.py").write_text(
+        "\n".join(
+            [
+                "allow_mock_providers: bool = False",
+                "mock providers are disabled for production workflow runs",
+                "finalize_guard:decision_requires_human_review",
+            ]
+        ),
+        encoding="utf-8",
+    )
 
 
 def test_check_desktop_release_ready_reports_missing_dist(tmp_path):
@@ -44,8 +65,29 @@ def test_check_desktop_release_ready_reports_missing_dist(tmp_path):
         "desktop-exe",
         "readme",
         "runtime-installer",
+        "mock-provider-guard",
     ]
     assert any("build_desktop_agent.ps1" in action for action in result.actions)
+    assert any("mock-provider" in action for action in result.actions)
+
+
+def test_release_preflight_requires_production_mock_provider_guard(tmp_path):
+    _create_dist_tree(tmp_path)
+    source_root = tmp_path / "src" / "consensus_translation"
+    source_root.mkdir(parents=True, exist_ok=True)
+    (source_root / "desktop_agent_app.py").write_text(
+        "allow_mock_providers: bool = False\n",
+        encoding="utf-8",
+    )
+    (source_root / "agent_workflows.py").write_text(
+        "allow_mock_providers: bool = False\n",
+        encoding="utf-8",
+    )
+
+    result = check_desktop_release_ready(tmp_path)
+
+    assert result.ok is False
+    assert "mock-provider-guard" in result.missing
 
 
 def test_build_desktop_release_package_writes_manifest_and_zip(tmp_path):

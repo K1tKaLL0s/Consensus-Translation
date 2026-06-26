@@ -40,6 +40,7 @@ def qt_service(tmp_path):
             topic="release-test",
             max_context_tokens=128,
             reserved_output_tokens=16,
+            allow_mock_providers=True,
         ),
         providers=[EchoModelProvider("local-a", prefix="JP:")],
         store=store,

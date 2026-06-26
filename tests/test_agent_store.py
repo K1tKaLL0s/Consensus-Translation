@@ -171,6 +171,25 @@ def test_sqlite_store_reads_and_confirms_agent_run_status(tmp_path):
     assert after["status"] == "finalized"
     assert store.confirm_agent_run("missing-run") is False
 
+
+def test_sqlite_store_does_not_reconfirm_finalized_agent_run(tmp_path):
+    store = AgentRunStore(tmp_path / "agent-runs.sqlite3")
+    result = run_agent_translation(
+        text="hello",
+        source_lang="en",
+        target_lang="zh",
+        topic="general",
+        mode=AgentMode.LEARNING,
+        providers=[StaticModelProvider("local-a", "nihao", confidence=0.7)],
+        api_enabled=False,
+        budget_limit=0.0,
+        store=store,
+    )
+
+    assert store.confirm_agent_run(result.contract.run_id) is True
+    assert store.confirm_agent_run(result.contract.run_id) is False
+
+
 def test_sqlite_store_rejects_agent_run_status(tmp_path):
     store = AgentRunStore(tmp_path / "agent-runs.sqlite3")
     result = run_agent_translation(

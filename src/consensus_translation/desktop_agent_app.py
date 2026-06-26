@@ -81,6 +81,7 @@ class DesktopAgentConfig:
     comet_command: str = ""
     comet_model: str = "Unbabel/wmt22-comet-da"
     comet_model_storage_path: str = ""
+    allow_mock_providers: bool = False
 
 
 class DesktopAgentController:
@@ -164,6 +165,21 @@ class DesktopAgentController:
             ),
         )
 
+    def _assert_mock_providers_allowed(self) -> None:
+        if self.config.allow_mock_providers:
+            return
+        mock_ids = [
+            getattr(provider, "provider_id", "<unknown>")
+            for provider in self.providers
+            if bool(getattr(provider, "is_mock", False))
+            or str(getattr(provider, "provider_kind", "")).lower() == "mock"
+        ]
+        if mock_ids:
+            raise PermissionError(
+                "mock providers are disabled for production desktop runs: "
+                + ", ".join(str(item) for item in mock_ids)
+            )
+
     @staticmethod
     def _load_optional_project_text(path_text: str, label: str) -> str | None:
         normalized = path_text.strip()
@@ -216,6 +232,7 @@ class DesktopAgentController:
         self._remote_confirmation_id = None
 
     def translate_text(self, text: str) -> ContextManagedTranslationResult:
+        self._assert_mock_providers_allowed()
         self._consume_remote_confirmation(text)
         training_text = self._load_optional_project_text(
             self.config.training_file,
@@ -241,6 +258,7 @@ class DesktopAgentController:
             training_text=training_text,
             validation_text=validation_text,
             allow_training_upload=self.config.allow_training_upload,
+            allow_mock_providers=self.config.allow_mock_providers,
         )
 
     def translate_file(self, path: str | Path) -> ContextManagedTranslationResult:

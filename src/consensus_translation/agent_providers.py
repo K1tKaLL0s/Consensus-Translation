@@ -70,6 +70,10 @@ class StaticModelProvider:
 
 
 class EchoModelProvider:
+    provider_kind = "mock"
+    provider_role = "echo"
+    is_mock = True
+
     def __init__(
         self,
         provider_id: str,

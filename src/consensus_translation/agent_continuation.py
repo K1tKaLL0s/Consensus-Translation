@@ -75,6 +75,7 @@ def _run_slice(
     training_text: str | None,
     validation_text: str | None,
     allow_training_upload: bool,
+    allow_mock_providers: bool,
 ) -> ManagedTranslationTask:
     run = run_agent_translation(
         text=slice_item.text,
@@ -92,6 +93,7 @@ def _run_slice(
         training_text=training_text,
         validation_text=validation_text,
         allow_training_upload=allow_training_upload,
+        allow_mock_providers=allow_mock_providers,
         continuation_brief=inherited_brief,
     )
     run.contract.trace.append(
@@ -165,6 +167,7 @@ def run_context_managed_translation(
     training_text: str | None = None,
     validation_text: str | None = None,
     allow_training_upload: bool = False,
+    allow_mock_providers: bool = False,
 ) -> ContextManagedTranslationResult:
     plan = plan_context_slices(text, context_budget)
     initial_slices = [item for item in plan.slices if item.fits_current_task]
@@ -206,6 +209,7 @@ def run_context_managed_translation(
         training_text=training_text,
         validation_text=validation_text,
         allow_training_upload=allow_training_upload,
+        allow_mock_providers=allow_mock_providers,
     )
     translation_brief = _build_translation_brief(
         topic=topic,
@@ -235,6 +239,7 @@ def run_context_managed_translation(
             training_text=training_text,
             validation_text=validation_text,
             allow_training_upload=allow_training_upload,
+            allow_mock_providers=allow_mock_providers,
         )
         for item in continuation_slices
     ]

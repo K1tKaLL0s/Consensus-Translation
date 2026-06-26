@@ -40,6 +40,28 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _mock_provider_guard_ready(root: Path) -> bool:
+    required_markers = {
+        root / "src" / "consensus_translation" / "desktop_agent_app.py": (
+            "allow_mock_providers: bool = False",
+            "mock providers are disabled for production desktop runs",
+        ),
+        root / "src" / "consensus_translation" / "agent_workflows.py": (
+            "allow_mock_providers: bool = False",
+            "mock providers are disabled for production workflow runs",
+            "finalize_guard:decision_requires_human_review",
+        ),
+    }
+    for path, markers in required_markers.items():
+        try:
+            source = path.read_text(encoding="utf-8")
+        except OSError:
+            return False
+        if any(marker not in source for marker in markers):
+            return False
+    return True
+
+
 def _file_artifact(path: Path, root: Path | None = None) -> dict[str, object]:
     artifact_path = Path(path).resolve()
     if root is not None:
@@ -71,6 +93,8 @@ def check_desktop_release_ready(project_root: str | Path) -> DesktopReleasePrefl
         missing.append("readme")
     if not (root / "install_optional_runtimes.ps1").exists():
         missing.append("runtime-installer")
+    if not _mock_provider_guard_ready(root):
+        missing.append("mock-provider-guard")
 
     actions: list[str] = []
     if "desktop-dist" in missing or "desktop-exe" in missing:
@@ -79,6 +103,8 @@ def check_desktop_release_ready(project_root: str | Path) -> DesktopReleasePrefl
         actions.append("restore README.md")
     if "runtime-installer" in missing:
         actions.append("restore install_optional_runtimes.ps1")
+    if "mock-provider-guard" in missing:
+        actions.append("restore production mock-provider and finalize guards before release")
 
     return DesktopReleasePreflight(
         ok=not missing,

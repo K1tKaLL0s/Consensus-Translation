@@ -63,6 +63,7 @@ def test_context_managed_translation_processes_all_initial_fit_slices_before_con
         context_budget=ContextBudget(max_context_tokens=7, reserved_output_tokens=2),
         api_enabled=False,
         budget_limit=0.0,
+        allow_mock_providers=True,
     )
 
     assert result.context_plan.initial_text == "alpha beta\n\ngamma delta"
@@ -85,6 +86,7 @@ def test_context_managed_translation_creates_initial_continuation_and_stitch_tas
         context_budget=ContextBudget(max_context_tokens=18, reserved_output_tokens=5),
         api_enabled=False,
         budget_limit=0.0,
+        allow_mock_providers=True,
     )
 
     assert result.context_plan.initial_text == "第一段命运之轮转动。"
@@ -136,6 +138,7 @@ def test_context_managed_translation_records_runtime_context_checks():
         context_budget=ContextBudget(max_context_tokens=12, reserved_output_tokens=2),
         api_enabled=False,
         budget_limit=0.0,
+        allow_mock_providers=True,
     )
 
     all_tasks = [result.initial_task, *result.continuation_tasks]

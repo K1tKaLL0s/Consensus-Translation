@@ -922,7 +922,8 @@ class AgentRunStore:
                 """
                 update agent_runs
                 set status = 'finalized'
-                where run_id = ? and status != 'rejected'
+                where run_id = ?
+                  and status in ('awaiting_human_confirmation', 'needs_review')
                 """,
                 (run_id,),
             )

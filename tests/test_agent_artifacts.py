@@ -27,6 +27,7 @@ def test_export_translation_artifacts_writes_delivery_and_audit_files(tmp_path):
         context_budget=ContextBudget(max_context_tokens=7, reserved_output_tokens=2),
         api_enabled=False,
         budget_limit=0.0,
+        allow_mock_providers=True,
     )
 
     artifacts = export_translation_artifacts(

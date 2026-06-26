@@ -65,6 +65,20 @@ def _provider_is_cloud(provider: ModelProvider) -> bool:
     )
 
 
+def _provider_is_mock(provider: ModelProvider) -> bool:
+    return bool(getattr(provider, "is_mock", False)) or str(
+        getattr(provider, "provider_kind", "")
+    ).lower() == "mock"
+
+
+def _mock_provider_ids(providers: list[ModelProvider]) -> list[str]:
+    return [
+        str(getattr(provider, "provider_id", "<unknown>"))
+        for provider in providers
+        if _provider_is_mock(provider)
+    ]
+
+
 def _limited_cloud_provider_set(
     providers: list[ModelProvider],
 ) -> tuple[list[ModelProvider], list[ModelProvider]]:
@@ -302,12 +316,19 @@ def run_agent_translation(
     evaluator: TranslationEvaluator | None = None,
     continuation_brief: str | None = None,
     allow_training_upload: bool = False,
+    allow_mock_providers: bool = False,
 ) -> AgentRunResult:
     requested_mode = AgentMode(mode)
     effective_mode = requested_mode
     trace: list[str] = []
     meta_decision = None
     active_lexicon_store = lexicon_store or store
+    mock_provider_ids = _mock_provider_ids(providers)
+    if mock_provider_ids and not allow_mock_providers:
+        raise PermissionError(
+            "mock providers are disabled for production workflow runs: "
+            + ", ".join(mock_provider_ids)
+        )
     domain_signals = extract_domain_signals(text)
     domain_tags = _string_tuple(domain_signals["domain_tags"])
     domain_tag_count = len(domain_tags)
@@ -412,6 +433,8 @@ def run_agent_translation(
         contract.trace.append(
             f"provider_skipped:{provider.provider_id}:cloud_provider_limit"
         )
+    for provider_id in mock_provider_ids:
+        contract.trace.append(f"mock_provider_allowed:{provider_id}")
     workflow = WorkflowStateMachine()
     _record_workflow_event(contract, workflow, WorkflowEvent.START_TRANSLATION)
     if domain_tags:
@@ -622,6 +645,17 @@ def run_agent_translation(
                     workflow,
                     WorkflowEvent.ARBITRATION_DONE,
                 )
+        elif decision.requires_human_review and not (
+            policy.validation_required and validation_passed
+        ):
+            contract.status = AgentRunStatus.NEEDS_REVIEW
+            contract.trace.append("finalize_guard:decision_requires_human_review")
+            if workflow.state == WorkflowState.CONSENSUS_SCORING:
+                _record_workflow_event(
+                    contract,
+                    workflow,
+                    WorkflowEvent.ARBITRATION_DONE,
+                )
         else:
             contract.status = AgentRunStatus.FINALIZED
             if workflow.state == WorkflowState.CONSENSUS_SCORING:
@@ -660,6 +694,7 @@ def run_agent_batch_translation(
     evaluator: TranslationEvaluator | None = None,
     continuation_brief: str | None = None,
     allow_training_upload: bool = False,
+    allow_mock_providers: bool = False,
 ) -> list[AgentRunResult]:
     return [
         run_agent_translation(
@@ -679,6 +714,7 @@ def run_agent_batch_translation(
             evaluator=evaluator,
             continuation_brief=continuation_brief,
             allow_training_upload=allow_training_upload,
+            allow_mock_providers=allow_mock_providers,
         )
         for document in documents
     ]
