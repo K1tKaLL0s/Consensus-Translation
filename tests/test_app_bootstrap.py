@@ -30,3 +30,12 @@ def test_user_manual_clarifies_chinese_ui_copy_with_english_contract_keys():
     assert "保持英文" in manual
     assert "`final_text`" in manual
     assert "`decision_reason`" in manual
+
+
+def test_user_manual_mentions_confirm_revise_gate_and_revise_only_writeback():
+    root = Path(__file__).resolve().parents[1]
+    manual = (root / "docs" / "user_manual_zh.md").read_text(encoding="utf-8")
+
+    assert "confirm/revise" in manual
+    assert "仅在 revise" in manual
+    assert "writeback" in manual

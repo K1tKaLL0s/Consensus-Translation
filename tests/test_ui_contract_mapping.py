@@ -16,11 +16,17 @@ from app import (
     PAGE_FIELD_MAP,
     PAGE_LABEL_MAP,
     build_result_panel,
+    build_local_failure_payload,
+    clear_chat_revision_state,
+    decide_final_output_action,
+    decide_final_output_display,
     extract_uploaded_text,
     extract_page_data,
     get_page_select_keys,
     resolve_input_text,
     resolve_dot_path,
+    run_apply_local_revision_safe,
+    run_local_job_safe,
 )
 
 
@@ -391,3 +397,138 @@ def test_build_result_panel_extracts_pretrain_and_base_local_fields():
     assert panel["local_decision_reason"] == "right-score-greater"
     assert panel["pretrain_calibration_summary"] == "pretrain-complete"
     assert panel["pretrain_improvement_rate"] == 0.12
+
+
+def test_build_result_panel_includes_sidebar_diagnostic_errors():
+    panel = build_result_panel(
+        {"mode": "local"},
+        revision_error="writeback failed",
+        local_run_error="engine-a and engine-b failed",
+    )
+
+    assert panel["revision_writeback_error"] == "writeback failed"
+    assert panel["local_run_error"] == "engine-a and engine-b failed"
+
+
+def test_decide_final_output_action_confirm_does_not_writeback():
+    state = decide_final_output_action(
+        action="confirm",
+        revised_text="",
+        has_provisional=True,
+    )
+
+    assert state["finalized"] is True
+    assert state["should_writeback"] is False
+
+
+def test_decide_final_output_action_revise_requires_writeback():
+    state = decide_final_output_action(
+        action="revise",
+        revised_text="修正文",
+        has_provisional=True,
+    )
+
+    assert state["finalized"] is False
+    assert state["should_writeback"] is True
+
+
+def test_decide_final_output_action_blank_revision_does_not_writeback():
+    state = decide_final_output_action(
+        action="revise",
+        revised_text="   ",
+        has_provisional=True,
+    )
+
+    assert state["finalized"] is False
+    assert state["should_writeback"] is False
+
+
+def test_clear_chat_revision_state_resets_all_chat_keys():
+    state = {
+        "final_output_text": "旧输出",
+        "last_revision_text": "旧修订",
+        "revision_state": {"ok": True},
+        "awaiting_revision": True,
+        "final_output_context": "ctx-old",
+        "revision_error": "boom",
+        "local_run_error": "failed",
+    }
+
+    clear_chat_revision_state(state)
+
+    assert state["final_output_text"] == ""
+    assert state["last_revision_text"] == ""
+    assert state["revision_state"] == {}
+    assert state["awaiting_revision"] is False
+    assert state["final_output_context"] is None
+    assert state["revision_error"] is None
+    assert state["local_run_error"] is None
+
+
+def test_decide_final_output_display_hides_stale_context_output():
+    payload = {"mode": "local", "provisional_text": "当前候选"}
+
+    result = decide_final_output_display(
+        payload=payload,
+        final_output_text="历史输出",
+        final_output_context="ctx-old",
+    )
+
+    assert result["show_final_output"] is False
+    assert result["show_provisional"] is True
+
+
+def test_run_apply_local_revision_safe_returns_error_instead_of_throwing():
+    def raiser(**kwargs):
+        raise RuntimeError("writeback failed")
+
+    result, err = run_apply_local_revision_safe(
+        apply_revision_fn=raiser,
+        source_text="src",
+        provisional_text="prov",
+        revised_text="rev",
+        topic="travel",
+    )
+
+    assert result == {}
+    assert err == "writeback failed"
+
+
+def test_build_local_failure_payload_sets_chat_visible_failure_message():
+    payload = build_local_failure_payload()
+
+    assert payload["mode"] == "local"
+    assert payload["provisional_text"] == "翻译失败"
+
+
+def test_run_local_job_safe_returns_fallback_payload_on_exception():
+    def raiser(**kwargs):
+        raise RuntimeError("all engines failed")
+
+    payload, err = run_local_job_safe(
+        run_local_job_fn=raiser,
+        text="你好",
+        source_lang="zh",
+        target_lang="ja",
+        topic="general",
+    )
+
+    assert err == "all engines failed"
+    assert payload["mode"] == "local"
+    assert payload["provisional_text"] == "翻译失败"
+
+
+def test_run_local_job_safe_returns_normal_payload_on_success():
+    def ok_runner(**kwargs):
+        return {"mode": "local", "provisional_text": "正常输出"}
+
+    payload, err = run_local_job_safe(
+        run_local_job_fn=ok_runner,
+        text="你好",
+        source_lang="zh",
+        target_lang="ja",
+        topic="general",
+    )
+
+    assert err is None
+    assert payload == {"mode": "local", "provisional_text": "正常输出"}

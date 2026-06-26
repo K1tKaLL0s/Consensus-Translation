@@ -1,32 +1,11 @@
 import re
 
+from consensus_translation.topic_taxonomy import (
+    topic_audit_categories,
+    topic_keyword_map,
+)
 
-DOMAIN_KEYWORDS: dict[str, tuple[str, ...]] = {
-    "myth": (
-        "myth",
-        "dragon",
-        "legend",
-        "god",
-        "goddess",
-        "ancestor",
-    ),
-    "history": (
-        "history",
-        "chronicle",
-        "dynasty",
-        "empire",
-        "era",
-        "archive",
-    ),
-    "science": (
-        "science",
-        "astronomy",
-        "astronomer",
-        "physics",
-        "chemical",
-        "biology",
-    ),
-}
+DOMAIN_KEYWORDS: dict[str, tuple[str, ...]] = topic_keyword_map()
 
 
 def _tokenize(text: str) -> list[str]:
@@ -46,4 +25,9 @@ def extract_domain_signals(text: str) -> dict[str, object]:
     return {
         "domain_tags": tags,
         "domain_hits": hits,
+        "topic_audit_categories": {
+            topic: category
+            for topic, category in topic_audit_categories().items()
+            if topic in tags
+        },
     }

@@ -13,7 +13,12 @@ if str(SRC) not in sys.path:
 
 from consensus_translation.contracts import StageStatus, TranslationJobContract
 import consensus_translation.health as health_module
-from consensus_translation.workflows import run_local_job, run_pretrain_job
+from consensus_translation.lexicon import LexiconRepo
+from consensus_translation.workflows import (
+    apply_local_revision,
+    run_local_job,
+    run_pretrain_job,
+)
 
 
 def test_pretrain_returns_calibration_summary_and_updates(monkeypatch):
@@ -105,6 +110,47 @@ def test_local_job_marks_needs_review_when_scores_low(monkeypatch):
     assert result["final_text"] == "hello"
     assert result["final_score"] == pytest.approx(0.4525)
     assert result["needs_review"] is True
+
+
+def test_research_release_profile_uses_nllb_candidate(monkeypatch):
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineA.translate",
+        lambda _self, _text, _source, _target: ("opus", 0.8),
+    )
+    monkeypatch.setattr(
+        "consensus_translation.workflows.ResearchNllbEngine.translate",
+        lambda _self, _text, _source, _target: ("nllb", 0.7),
+    )
+
+    result = run_local_job(
+        text="你好",
+        source_lang="zh",
+        target_lang="en",
+        topic="general",
+        release_profile="research",
+    )
+
+    assert result["release_profile"] == "research"
+    assert result["cand_a"] == "opus"
+    assert result["cand_b"] == "nllb"
+
+
+def test_commercial_profile_deduplicates_identical_opus_candidates(monkeypatch):
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineA.translate",
+        lambda _self, _text, _source, _target: ("同じ訳", 0.8),
+    )
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineB.translate",
+        lambda _self, _text, _source, _target: ("同じ訳", 0.7),
+    )
+
+    result = run_local_job("相同结果", "zh", "ja", "general")
+
+    assert result["candidate_deduplicated"] is True
+    assert result["winner"] == "left"
+    assert result["final_text"] == "同じ訳"
+    assert result["decision_reason"] == "engine-duplicate-candidate"
 
 
 def test_local_job_applies_domain_adjustment_and_reports_trace_and_hits(monkeypatch):
@@ -342,7 +388,9 @@ def test_local_mode_go_live_payload_has_required_fields(monkeypatch):
     assert result["audit_exported"] is False
 
 
-def test_local_mode_error_path_sets_structured_contract_error(monkeypatch):
+def test_local_mode_error_path_sets_structured_contract_error_when_both_engines_fail(
+    monkeypatch,
+):
     captured_contract = TranslationJobContract(
         job_id="job-structured-error",
         mode="local",
@@ -366,8 +414,9 @@ def test_local_mode_error_path_sets_structured_contract_error(monkeypatch):
         classmethod(fake_new_job),
     )
     monkeypatch.setattr("consensus_translation.workflows.LocalEngineA.translate", boom)
+    monkeypatch.setattr("consensus_translation.workflows.LocalEngineB.translate", boom)
 
-    with pytest.raises(RuntimeError, match="engine exploded"):
+    with pytest.raises(RuntimeError, match="both engines failed"):
         run_local_job(
             text="你好",
             source_lang="zh",
@@ -376,10 +425,11 @@ def test_local_mode_error_path_sets_structured_contract_error(monkeypatch):
         )
 
     assert captured_contract.stage_status.error_code == "ENGINE_FAILURE"
-    assert captured_contract.stage_status.error_message == "engine exploded"
+    assert "engine_a: engine exploded" in str(captured_contract.stage_status.error_message)
+    assert "engine_b: engine exploded" in str(captured_contract.stage_status.error_message)
 
 
-def test_local_mode_error_path_sets_structured_contract_error_for_engine_b(monkeypatch):
+def test_local_mode_survives_engine_b_failure_with_structured_engine_errors(monkeypatch):
     captured_contract = TranslationJobContract(
         job_id="job-structured-error-b",
         mode="local",
@@ -414,13 +464,80 @@ def test_local_mode_error_path_sets_structured_contract_error_for_engine_b(monke
         engine_b_boom,
     )
 
-    with pytest.raises(RuntimeError, match="engine b exploded"):
-        run_local_job(
-            text="你好",
-            source_lang="zh",
-            target_lang="ja",
-            topic="general",
-        )
+    result = run_local_job(
+        text="你好",
+        source_lang="zh",
+        target_lang="ja",
+        topic="general",
+    )
 
-    assert captured_contract.stage_status.error_code == "ENGINE_FAILURE"
-    assert captured_contract.stage_status.error_message == "engine b exploded"
+    assert result["final_text"] == "ok"
+    assert result["decision_reason"] == "engine-single-survivor-a"
+    assert result["engine_errors"]["engine_b"] == "engine_b: engine b exploded"
+    assert captured_contract.stage_status.error_code is None
+    assert captured_contract.stage_status.error_message is None
+
+
+def test_local_job_survives_engine_a_index_error(monkeypatch):
+    def boom(*_args, **_kwargs):
+        raise IndexError("index out of range in self")
+
+    monkeypatch.setattr("consensus_translation.workflows.LocalEngineA.translate", boom)
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineB.translate",
+        lambda _self, _text, _source, _target: ("生き残り", 0.71),
+    )
+
+    result = run_local_job("你好", "zh", "ja", "general")
+
+    assert result["final_text"] == "生き残り"
+    assert result["decision_reason"] == "engine-single-survivor-b"
+    assert "engine_a" in result["engine_errors"]
+
+
+def test_local_job_single_survivor_keeps_winner_aligned_with_surviving_engine(
+    monkeypatch,
+):
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("engine a failed")
+
+    monkeypatch.setattr("consensus_translation.workflows.LocalEngineA.translate", boom)
+    monkeypatch.setattr(
+        "consensus_translation.workflows.LocalEngineB.translate",
+        lambda _self, _text, _source, _target: ("survivor", 0.0),
+    )
+
+    result = run_local_job("你好", "zh", "ja", "general")
+
+    assert result["winner"] == "right"
+    assert result["final_text"] == "survivor"
+    assert result["decision_reason"] == "engine-single-survivor-b"
+
+
+def test_apply_local_revision_writes_uncategorized_when_topic_missing(tmp_path):
+    repo = LexiconRepo(store_path=tmp_path / "lexicon.json")
+    result = apply_local_revision(
+        source_text="你好",
+        provisional_text="こんにちは",
+        revised_text="こんにちは",
+        topic="",
+        lexicon_repo=repo,
+    )
+
+    assert result["update_status"] == "ok"
+    assert result["special_flag"] is False
+    assert repo.find("uncategorized", "你好") == "こんにちは"
+
+
+def test_apply_local_revision_flags_special_change_for_reordered_text(tmp_path):
+    repo = LexiconRepo(store_path=tmp_path / "lexicon.json")
+    result = apply_local_revision(
+        source_text="term",
+        provisional_text="abcdef",
+        revised_text="fedcba",
+        topic="general",
+        lexicon_repo=repo,
+    )
+
+    assert result["diff_ratio"] >= 0.6
+    assert result["special_flag"] is True

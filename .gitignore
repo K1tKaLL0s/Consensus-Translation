@@ -1,1 +1,12 @@
 .worktrees/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pytest_tmp_runtime/
+.pytest_localappdata/
+.acceptance/
+.runtime/
+build/
+dist/
+release/
+data/

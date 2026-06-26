@@ -1,17 +1,168 @@
 import logging
+from difflib import SequenceMatcher
 from pathlib import Path
+from typing import Callable
 
+from consensus_translation.agent_consensus import (
+    align_translation_candidates,
+    arbitrate_consensus_result,
+    collect_consensus_candidates,
+)
+from consensus_translation.agent_contracts import TranslationCandidate
 from consensus_translation.config import AppSettings
 from consensus_translation.contracts import StageStatus, TranslationJobContract
 from consensus_translation.domain_signals import extract_domain_signals
-from consensus_translation.engines import LocalEngineA, LocalEngineB
+from consensus_translation.engine_registry import EngineRegistry
+from consensus_translation.engines import (
+    LocalEngineA,
+    LocalEngineB,
+    ResearchNllbEngine,
+)
 from consensus_translation.evaluation import evaluate_translation
 from consensus_translation.lexicon import LexiconRepo, RevisionPayload
-from consensus_translation.mdwc import DecisionInput, choose_candidate, score_candidate
+from consensus_translation.merging import merge_sentences
+from consensus_translation.mdwc import (
+    DecisionInput,
+    MDWCContext,
+    choose_candidate,
+    score_candidate,
+)
 from consensus_translation.ops import apply_minimum_log_level, export_audit_payload
 
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _safe_translate(
+    engine: object,
+    engine_name: str,
+    text: str,
+    source_lang: str,
+    target_lang: str,
+) -> dict[str, object]:
+    try:
+        output, conf = engine.translate(text, source_lang, target_lang)
+        return {"ok": True, "text": output, "confidence": conf, "error": None}
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "ok": False,
+            "text": None,
+            "confidence": 0.0,
+            "error": f"{engine_name}: {exc}",
+        }
+
+
+def _diff_ratio(left: str, right: str) -> float:
+    left_text = left.strip()
+    right_text = right.strip()
+    if not left_text and not right_text:
+        return 0.0
+    similarity = SequenceMatcher(a=left_text, b=right_text).ratio()
+    return 1.0 - similarity
+
+
+def _legacy_consensus_audit(
+    *,
+    source_text: str,
+    engine_a_result: dict[str, object],
+    engine_b_result: dict[str, object],
+    topic_match_score: float,
+) -> dict[str, object]:
+    provider_candidates: list[TranslationCandidate] = []
+    if bool(engine_a_result["ok"]):
+        provider_candidates.append(
+            TranslationCandidate(
+                provider_id="legacy-engine-a",
+                text=str(engine_a_result["text"] or ""),
+                confidence=float(engine_a_result["confidence"]),
+                provider_kind="local",
+                provider_role="legacy-local",
+                reasoning="legacy local workflow candidate A",
+            )
+        )
+    if bool(engine_b_result["ok"]):
+        provider_candidates.append(
+            TranslationCandidate(
+                provider_id="legacy-engine-b",
+                text=str(engine_b_result["text"] or ""),
+                confidence=float(engine_b_result["confidence"]),
+                provider_kind="local",
+                provider_role="legacy-local",
+                reasoning="legacy local workflow candidate B",
+            )
+        )
+
+    collected = collect_consensus_candidates(
+        source_text=source_text,
+        provider_candidates=provider_candidates,
+        glossary_matches={},
+        translation_memory_matches={},
+    )
+    if not collected.candidates:
+        return {
+            "status": "no-candidates",
+            "vote_map": {},
+            "requires_human_review": True,
+            "conflict_points": [],
+            "decision_reason": "legacy-consensus-audit-no-candidates",
+        }
+
+    alignment = align_translation_candidates(
+        source_text=source_text,
+        candidates=collected.candidates,
+        glossary_matches={},
+    )
+    decision = arbitrate_consensus_result(
+        candidates=collected.candidates,
+        alignment=alignment,
+        mdwc_context=MDWCContext(
+            topic_match_score=topic_match_score,
+            validation_coverage=0.0,
+            budget_spent=0.0,
+            budget_limit=1.0,
+            iteration_count=1,
+            special_marker_count=0,
+        ),
+    )
+    return {
+        "status": "agent-consensus-audit",
+        "vote_map": decision.vote_map,
+        "requires_human_review": decision.requires_human_review,
+        "conflict_points": decision.conflict_points,
+        "decision_reason": decision.decision_reason,
+    }
+
+
+def apply_local_revision(
+    source_text: str,
+    provisional_text: str,
+    revised_text: str,
+    topic: str | None,
+    lexicon_repo: LexiconRepo | None = None,
+) -> dict[str, object]:
+    repo = lexicon_repo or LexiconRepo()
+    effective_topic = topic or "uncategorized"
+    ratio = _diff_ratio(provisional_text, revised_text)
+    event = repo.apply_revision(
+        RevisionPayload(
+            topic=effective_topic,
+            source=source_text,
+            target=revised_text,
+            diff_ratio=ratio,
+        )
+    )
+
+    return {
+        "diff_ratio": ratio,
+        "special_flag": event.special_flag,
+        "update_status": "ok",
+        "lexicon_updates": [
+            {
+                "topic": effective_topic,
+                "special_flag": event.special_flag,
+            }
+        ],
+    }
 
 
 def run_local_job(
@@ -21,6 +172,9 @@ def run_local_job(
     topic: str | None,
     audit_path: str | Path | None = None,
     resume_from_stage: StageStatus | str | None = None,
+    release_profile: str = "commercial-safe",
+    engine_a_factory: Callable[[], object] | None = None,
+    engine_b_factory: Callable[[str], object] | None = None,
 ) -> dict[str, object]:
     effective_log_level = apply_minimum_log_level(LOGGER)
     LOGGER.info(
@@ -57,15 +211,52 @@ def run_local_job(
 
     update_stage(StageStatus.INGEST, 0.05)
 
-    engine_a = LocalEngineA()
-    engine_b = LocalEngineB()
+    normalized_profile = release_profile.strip().lower()
+    EngineRegistry.default().enabled_for(normalized_profile)
+    engine_a = engine_a_factory() if engine_a_factory is not None else LocalEngineA()
+    engine_b = (
+        engine_b_factory(normalized_profile)
+        if engine_b_factory is not None
+        else (
+            ResearchNllbEngine()
+            if normalized_profile == "research"
+            else LocalEngineB()
+        )
+    )
 
     update_stage(StageStatus.SEGMENT, 0.2)
     update_stage(StageStatus.ENGINE, 0.45)
 
-    try:
-        a_text, a_conf = engine_a.translate(text, source_lang, target_lang)
-        b_text, b_conf = engine_b.translate(text, source_lang, target_lang)
+    engine_a_result = _safe_translate(engine_a, "engine_a", text, source_lang, target_lang)
+    engine_b_result = _safe_translate(engine_b, "engine_b", text, source_lang, target_lang)
+
+    engine_errors: dict[str, str] = {}
+    if not bool(engine_a_result["ok"]):
+        engine_errors["engine_a"] = str(engine_a_result["error"])
+    if not bool(engine_b_result["ok"]):
+        engine_errors["engine_b"] = str(engine_b_result["error"])
+
+    if not bool(engine_a_result["ok"]) and not bool(engine_b_result["ok"]):
+        contract.stage_status.error_code = "ENGINE_FAILURE"
+        contract.stage_status.error_message = str(engine_errors)
+        raise RuntimeError("both engines failed")
+
+    candidate_deduplicated = False
+    if bool(engine_a_result["ok"]) and bool(engine_b_result["ok"]):
+        a_text = str(engine_a_result["text"])
+        b_text = str(engine_b_result["text"])
+        a_conf = float(engine_a_result["confidence"])
+        b_conf = float(engine_b_result["confidence"])
+        candidate_deduplicated = bool(a_text) and a_text.strip() == b_text.strip()
+        if candidate_deduplicated:
+            final_text = a_text
+            decision_reason = "engine-duplicate-candidate"
+            merge_trace = ["deduplicated:engine_b"]
+        else:
+            merged = merge_sentences(a_text, b_text, a_conf, b_conf)
+            final_text = merged.final_text
+            decision_reason = merged.decision_reason
+            merge_trace = merged.merge_trace
         LOGGER.debug(
             "engine outputs captured",
             extra={
@@ -73,10 +264,22 @@ def run_local_job(
                 "confidence_b": b_conf,
             },
         )
-    except Exception as exc:
-        contract.stage_status.error_code = "ENGINE_FAILURE"
-        contract.stage_status.error_message = str(exc)
-        raise
+    elif bool(engine_a_result["ok"]):
+        a_text = str(engine_a_result["text"])
+        a_conf = float(engine_a_result["confidence"])
+        b_text = ""
+        b_conf = 0.0
+        final_text = a_text
+        decision_reason = "engine-single-survivor-a"
+        merge_trace = []
+    else:
+        a_text = ""
+        a_conf = 0.0
+        b_text = str(engine_b_result["text"])
+        b_conf = float(engine_b_result["confidence"])
+        final_text = b_text
+        decision_reason = "engine-single-survivor-b"
+        merge_trace = []
 
     update_stage(StageStatus.CROSS_CHECK, 0.65)
 
@@ -99,21 +302,44 @@ def run_local_job(
 
     update_stage(StageStatus.MDWC, 0.85)
 
-    winner = choose_candidate(left, right, settings.mdwc_weights)
+    if candidate_deduplicated:
+        winner = left
+    elif bool(engine_a_result["ok"]) and bool(engine_b_result["ok"]):
+        winner = choose_candidate(left, right, settings.mdwc_weights)
+    elif bool(engine_a_result["ok"]):
+        winner = left
+    else:
+        winner = right
     winner_score = score_candidate(winner, settings.mdwc_weights)
     domain_adjustment = min(0.01 * len(domain_tags), 0.03)
     winner_score = min(winner_score + domain_adjustment, 1.0)
     needs_review = winner_score < 0.55
 
-    final_text = a_text if winner is left else b_text
+    if (
+        bool(engine_a_result["ok"])
+        and bool(engine_b_result["ok"])
+        and not candidate_deduplicated
+    ):
+        winner_text = a_text if winner is left else b_text
+        if not final_text:
+            final_text = winner_text
     winner_side = "left" if winner is left else "right"
-    overlap_score = 1.0 if a_text == b_text else 0.5
+    overlap_score = 1.0 if a_text == b_text and a_text else 0.5
+    topic_match_score = min(len(domain_tags) / 3.0, 1.0)
+    consensus_audit = _legacy_consensus_audit(
+        source_text=text,
+        engine_a_result=engine_a_result,
+        engine_b_result=engine_b_result,
+        topic_match_score=topic_match_score,
+    )
 
     update_stage(StageStatus.REVIEW, 0.95)
     update_stage(StageStatus.FINALIZE, 1.0)
 
     result: dict[str, object] = {
         "mode": "local",
+        "release_profile": normalized_profile,
+        "candidate_deduplicated": candidate_deduplicated,
         "source_lang": source_lang,
         "target_lang": target_lang,
         "topic": topic,
@@ -136,10 +362,17 @@ def run_local_job(
         "sentence_score": winner.sentence_score,
         "segment_score": winner.segment_score,
         "user_prior": winner.user_prior,
-        "decision_reason": "left-score-greater-or-equal" if winner is left else "right-score-greater",
+        "decision_reason": decision_reason,
+        "consensus_audit": consensus_audit,
+        "consensus_adapter": consensus_audit["status"],
+        "vote_map": consensus_audit["vote_map"],
+        "consensus_requires_review": consensus_audit["requires_human_review"],
         "domain_tags": domain_tags,
         "decision_trace": f"domain_weight_adjustment: +{domain_adjustment:.3f} tags={','.join(domain_tags) if domain_tags else 'none'}",
         "domain_hits": domain_hits,
+        "engine_errors": engine_errors,
+        "merge_trace": merge_trace,
+        "provisional_text": final_text,
         "checkpoint_used": checkpoint_used,
         "resume_from_stage": resume_value,
         "minimum_log_level": effective_log_level,
