@@ -1,6 +1,7 @@
 import logging
 from difflib import SequenceMatcher
 from pathlib import Path
+from typing import Callable
 
 from consensus_translation.agent_consensus import (
     align_translation_candidates,
@@ -172,6 +173,8 @@ def run_local_job(
     audit_path: str | Path | None = None,
     resume_from_stage: StageStatus | str | None = None,
     release_profile: str = "commercial-safe",
+    engine_a_factory: Callable[[], object] | None = None,
+    engine_b_factory: Callable[[str], object] | None = None,
 ) -> dict[str, object]:
     effective_log_level = apply_minimum_log_level(LOGGER)
     LOGGER.info(
@@ -210,11 +213,15 @@ def run_local_job(
 
     normalized_profile = release_profile.strip().lower()
     EngineRegistry.default().enabled_for(normalized_profile)
-    engine_a = LocalEngineA()
+    engine_a = engine_a_factory() if engine_a_factory is not None else LocalEngineA()
     engine_b = (
-        ResearchNllbEngine()
-        if normalized_profile == "research"
-        else LocalEngineB()
+        engine_b_factory(normalized_profile)
+        if engine_b_factory is not None
+        else (
+            ResearchNllbEngine()
+            if normalized_profile == "research"
+            else LocalEngineB()
+        )
     )
 
     update_stage(StageStatus.SEGMENT, 0.2)
