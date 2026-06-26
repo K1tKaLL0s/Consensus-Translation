@@ -2,6 +2,12 @@ import logging
 from difflib import SequenceMatcher
 from pathlib import Path
 
+from consensus_translation.agent_consensus import (
+    align_translation_candidates,
+    arbitrate_consensus_result,
+    collect_consensus_candidates,
+)
+from consensus_translation.agent_contracts import TranslationCandidate
 from consensus_translation.config import AppSettings
 from consensus_translation.contracts import StageStatus, TranslationJobContract
 from consensus_translation.domain_signals import extract_domain_signals
@@ -14,7 +20,12 @@ from consensus_translation.engines import (
 from consensus_translation.evaluation import evaluate_translation
 from consensus_translation.lexicon import LexiconRepo, RevisionPayload
 from consensus_translation.merging import merge_sentences
-from consensus_translation.mdwc import DecisionInput, choose_candidate, score_candidate
+from consensus_translation.mdwc import (
+    DecisionInput,
+    MDWCContext,
+    choose_candidate,
+    score_candidate,
+)
 from consensus_translation.ops import apply_minimum_log_level, export_audit_payload
 
 
@@ -47,6 +58,78 @@ def _diff_ratio(left: str, right: str) -> float:
         return 0.0
     similarity = SequenceMatcher(a=left_text, b=right_text).ratio()
     return 1.0 - similarity
+
+
+def _legacy_consensus_audit(
+    *,
+    source_text: str,
+    engine_a_result: dict[str, object],
+    engine_b_result: dict[str, object],
+    topic_match_score: float,
+) -> dict[str, object]:
+    provider_candidates: list[TranslationCandidate] = []
+    if bool(engine_a_result["ok"]):
+        provider_candidates.append(
+            TranslationCandidate(
+                provider_id="legacy-engine-a",
+                text=str(engine_a_result["text"] or ""),
+                confidence=float(engine_a_result["confidence"]),
+                provider_kind="local",
+                provider_role="legacy-local",
+                reasoning="legacy local workflow candidate A",
+            )
+        )
+    if bool(engine_b_result["ok"]):
+        provider_candidates.append(
+            TranslationCandidate(
+                provider_id="legacy-engine-b",
+                text=str(engine_b_result["text"] or ""),
+                confidence=float(engine_b_result["confidence"]),
+                provider_kind="local",
+                provider_role="legacy-local",
+                reasoning="legacy local workflow candidate B",
+            )
+        )
+
+    collected = collect_consensus_candidates(
+        source_text=source_text,
+        provider_candidates=provider_candidates,
+        glossary_matches={},
+        translation_memory_matches={},
+    )
+    if not collected.candidates:
+        return {
+            "status": "no-candidates",
+            "vote_map": {},
+            "requires_human_review": True,
+            "conflict_points": [],
+            "decision_reason": "legacy-consensus-audit-no-candidates",
+        }
+
+    alignment = align_translation_candidates(
+        source_text=source_text,
+        candidates=collected.candidates,
+        glossary_matches={},
+    )
+    decision = arbitrate_consensus_result(
+        candidates=collected.candidates,
+        alignment=alignment,
+        mdwc_context=MDWCContext(
+            topic_match_score=topic_match_score,
+            validation_coverage=0.0,
+            budget_spent=0.0,
+            budget_limit=1.0,
+            iteration_count=1,
+            special_marker_count=0,
+        ),
+    )
+    return {
+        "status": "agent-consensus-audit",
+        "vote_map": decision.vote_map,
+        "requires_human_review": decision.requires_human_review,
+        "conflict_points": decision.conflict_points,
+        "decision_reason": decision.decision_reason,
+    }
 
 
 def apply_local_revision(
@@ -235,6 +318,13 @@ def run_local_job(
             final_text = winner_text
     winner_side = "left" if winner is left else "right"
     overlap_score = 1.0 if a_text == b_text and a_text else 0.5
+    topic_match_score = min(len(domain_tags) / 3.0, 1.0)
+    consensus_audit = _legacy_consensus_audit(
+        source_text=text,
+        engine_a_result=engine_a_result,
+        engine_b_result=engine_b_result,
+        topic_match_score=topic_match_score,
+    )
 
     update_stage(StageStatus.REVIEW, 0.95)
     update_stage(StageStatus.FINALIZE, 1.0)
@@ -266,6 +356,10 @@ def run_local_job(
         "segment_score": winner.segment_score,
         "user_prior": winner.user_prior,
         "decision_reason": decision_reason,
+        "consensus_audit": consensus_audit,
+        "consensus_adapter": consensus_audit["status"],
+        "vote_map": consensus_audit["vote_map"],
+        "consensus_requires_review": consensus_audit["requires_human_review"],
         "domain_tags": domain_tags,
         "decision_trace": f"domain_weight_adjustment: +{domain_adjustment:.3f} tags={','.join(domain_tags) if domain_tags else 'none'}",
         "domain_hits": domain_hits,
