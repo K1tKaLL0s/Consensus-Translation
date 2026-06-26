@@ -7,6 +7,10 @@ from pathlib import Path
 import sqlite3
 
 from consensus_translation.agent_contracts import AgentRunResult
+from consensus_translation.agent_finalize import (
+    finalizable_agent_run_statuses,
+    finalized_agent_run_status,
+)
 from consensus_translation.agent_feedback import (
     RatingSignalSummary,
     TranslationRating,
@@ -917,27 +921,31 @@ class AgentRunStore:
         return self._run_row_to_dict(row)
 
     def confirm_agent_run(self, run_id: str) -> bool:
+        finalized_status = finalized_agent_run_status()
+        pending_statuses = finalizable_agent_run_statuses()
+        pending_placeholders = ", ".join("?" for _ in pending_statuses)
         with self._connect() as conn:
             cursor = conn.execute(
-                """
+                f"""
                 update agent_runs
-                set status = 'finalized'
+                set status = ?
                 where run_id = ?
-                  and status in ('awaiting_human_confirmation', 'needs_review')
+                  and status in ({pending_placeholders})
                 """,
-                (run_id,),
+                (finalized_status, run_id, *pending_statuses),
             )
         return cursor.rowcount > 0
 
     def reject_agent_run(self, run_id: str) -> bool:
+        finalized_status = finalized_agent_run_status()
         with self._connect() as conn:
             cursor = conn.execute(
                 """
                 update agent_runs
                 set status = 'rejected'
-                where run_id = ? and status != 'finalized'
+                where run_id = ? and status != ?
                 """,
-                (run_id,),
+                (run_id, finalized_status),
             )
         return cursor.rowcount > 0
 

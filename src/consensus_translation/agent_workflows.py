@@ -20,6 +20,7 @@ from consensus_translation.agent_contracts import (
     policy_for_mode,
 )
 from consensus_translation.agent_feedback import RatingSignalSummary
+from consensus_translation.agent_finalize import finalize_agent_contract
 from consensus_translation.agent_evaluators import (
     DeterministicTranslationEvaluator,
     EvaluationRequest,
@@ -657,13 +658,13 @@ def run_agent_translation(
                     WorkflowEvent.ARBITRATION_DONE,
                 )
         else:
-            contract.status = AgentRunStatus.FINALIZED
             if workflow.state == WorkflowState.CONSENSUS_SCORING:
                 _record_workflow_event(
                     contract,
                     workflow,
                     WorkflowEvent.USER_CONFIRMED,
                 )
+            finalize_agent_contract(contract)
 
     result = AgentRunResult(
         contract=contract,
