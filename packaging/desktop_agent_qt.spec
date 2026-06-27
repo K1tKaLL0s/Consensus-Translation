@@ -19,6 +19,10 @@ datas = [
     (str(project_root / "docs/user_manual_zh.md"), "docs"),
     (str(project_root / "docs/desktop_agent_core_zh.md"), "docs"),
     (str(project_root / "docs/desktop_agent_research_zh.md"), "docs"),
+    (
+        str(project_root / "UI design" / "High-Fidelity Translation Software UI" / "dist"),
+        "react-ui-dist",
+    ),
 ]
 
 a = Analysis(
@@ -29,6 +33,8 @@ a = Analysis(
     hiddenimports=[
         "PySide6.QtCore",
         "PySide6.QtGui",
+        "PySide6.QtWebChannel",
+        "PySide6.QtWebEngineWidgets",
         "PySide6.QtWidgets",
         "consensus_translation.agent_acceptance",
         "consensus_translation.agent_artifacts",
@@ -61,6 +67,7 @@ a = Analysis(
         "consensus_translation.desktop_qt.pages.projects",
         "consensus_translation.desktop_qt.pages.providers",
         "consensus_translation.desktop_qt.pages.workbench",
+        "consensus_translation.desktop_qt.react_workspace",
         "consensus_translation.desktop_qt.theme",
         "consensus_translation.help_content",
     ],

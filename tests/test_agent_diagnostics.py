@@ -39,9 +39,25 @@ class FakeCredentialStore:
 
 
 def _ready_project_root(root: Path) -> Path:
-    (root / "src" / "consensus_translation").mkdir(parents=True)
-    (root / "src" / "consensus_translation" / "desktop_agent_app.py").write_text(
-        "# desktop entrypoint",
+    source_root = root / "src" / "consensus_translation"
+    source_root.mkdir(parents=True)
+    (source_root / "desktop_agent_app.py").write_text(
+        "\n".join(
+            [
+                "allow_mock_providers: bool = False",
+                "mock providers are disabled for production desktop runs",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (source_root / "agent_workflows.py").write_text(
+        "\n".join(
+            [
+                "allow_mock_providers: bool = False",
+                "mock providers are disabled for production workflow runs",
+                "finalize_guard:decision_requires_human_review",
+            ]
+        ),
         encoding="utf-8",
     )
     (root / "packaging").mkdir()

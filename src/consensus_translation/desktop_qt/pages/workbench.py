@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 from consensus_translation.desktop_qt.application_service import (
     DesktopApplicationService,
 )
+from consensus_translation.desktop_qt.history_store import TranslationHistoryRecord
 
 
 class WorkbenchPage(QWidget):
@@ -135,6 +136,21 @@ class WorkbenchPage(QWidget):
         self.source_editor.setPlainText(text)
         self.status_label.setText(f"已载入：{path}")
         return text
+
+    def load_history_record(self, record: TranslationHistoryRecord) -> None:
+        self.source_editor.setPlainText(record.source_text)
+        self.result_editor.setPlainText(record.translated_text)
+        self.source_lang_input.setText(record.source_language)
+        self.target_lang_input.setText(record.target_language)
+        self.topic_input.setText(record.topic)
+        if record.mode:
+            index = self.mode_input.findText(record.mode)
+            if index < 0:
+                self.mode_input.addItem(record.mode)
+                index = self.mode_input.findText(record.mode)
+            self.mode_input.setCurrentIndex(index)
+        self._last_run_id = record.run_id
+        self.status_label.setText(f"已填入历史：{record.run_id or '-'}")
 
     def preview_remote_calls(self) -> None:
         try:

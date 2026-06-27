@@ -37,6 +37,7 @@ from consensus_translation.agent_workflow_state import (
 )
 from consensus_translation.domain_signals import extract_domain_signals
 from consensus_translation.mdwc import MDWCContext
+from consensus_translation.services.finalize_service import commit_agent_result
 
 
 VALIDATION_PASS_THRESHOLD = 0.75
@@ -672,10 +673,7 @@ def run_agent_translation(
         decision=decision,
         lexicon_proposals=proposals,
     )
-    if store is not None:
-        record_result = getattr(store, "record_result", None)
-        if callable(record_result):
-            record_result(result)
+    commit_agent_result(store, result)
     return result
 
 

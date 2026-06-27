@@ -7,6 +7,10 @@ from consensus_translation.desktop_qt.application_service import DesktopApplicat
 from consensus_translation.desktop_qt.components import primary_button, secondary_button, status_badge
 from consensus_translation.desktop_qt.history_store import TranslationHistoryRecord
 from consensus_translation.desktop_qt.i18n import I18n
+from consensus_translation.desktop_qt.navigation import NAVIGATION_LABELS
+
+
+WORKBENCH_NAVIGATION_LABEL = NAVIGATION_LABELS[2]
 
 
 class HistoryPage(QWidget):
@@ -84,13 +88,15 @@ class HistoryPage(QWidget):
         if record is None:
             return
         window = self.window()
-        translate_page = window.page("translate") if hasattr(window, "page") else None
+        translate_page = (
+            window.page(WORKBENCH_NAVIGATION_LABEL) if hasattr(window, "page") else None
+        )
         loader = getattr(translate_page, "load_history_record", None)
         if callable(loader):
             loader(record)
         show_page = getattr(window, "show_page", None)
         if callable(show_page):
-            show_page("translate")
+            show_page(WORKBENCH_NAVIGATION_LABEL)
         self.status_label.setText(self.i18n.t("history.refilled"))
 
     def clear_history(self) -> None:
