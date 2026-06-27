@@ -1,0 +1,140 @@
+{
+  "schema_version": "1.0.0",
+  "merge_gate": "integration/consensus-safe-merge",
+  "required_status": "supported",
+  "capabilities": [
+    {
+      "id": "consensus_layer",
+      "name": "Consensus Layer",
+      "status": "supported",
+      "evidence_tests": ["test_consensus_layer_candidate_alignment_mdwc_and_arbitration"]
+    },
+    {
+      "id": "candidate_layer",
+      "name": "Candidate Layer",
+      "status": "supported",
+      "evidence_tests": ["test_consensus_layer_candidate_alignment_mdwc_and_arbitration"]
+    },
+    {
+      "id": "alignment_layer",
+      "name": "Alignment Layer",
+      "status": "supported",
+      "evidence_tests": ["test_consensus_layer_candidate_alignment_mdwc_and_arbitration"]
+    },
+    {
+      "id": "mdwc_layer",
+      "name": "MDWC Layer",
+      "status": "supported",
+      "evidence_tests": ["test_mdwc_dimensions_include_feedback_context_and_special_penalty"]
+    },
+    {
+      "id": "arbitration_layer",
+      "name": "Arbitration Layer",
+      "status": "supported",
+      "evidence_tests": ["test_consensus_layer_candidate_alignment_mdwc_and_arbitration"]
+    },
+    {
+      "id": "memory_layer",
+      "name": "Memory Layer",
+      "status": "supported",
+      "evidence_tests": ["test_rating_feedback_and_glossary_writeback_require_explicit_user_actions"]
+    },
+    {
+      "id": "provider_registry",
+      "name": "Provider Registry",
+      "status": "supported",
+      "evidence_tests": ["test_provider_controls_keep_real_mock_and_cloud_boundaries"]
+    },
+    {
+      "id": "local_provider_a_b",
+      "name": "Local Provider A/B",
+      "status": "supported",
+      "evidence_tests": ["test_local_mode_keeps_dual_provider_mdwc_and_human_gate"]
+    },
+    {
+      "id": "cloud_provider_interface",
+      "name": "Cloud Provider Interface",
+      "status": "supported",
+      "evidence_tests": ["test_provider_controls_keep_real_mock_and_cloud_boundaries"]
+    },
+    {
+      "id": "workflow_state_machine",
+      "name": "Workflow State Machine",
+      "status": "supported",
+      "evidence_tests": ["test_workflow_state_machine_records_human_gate_and_rating_event"]
+    },
+    {
+      "id": "learning_mode",
+      "name": "Learning Mode",
+      "status": "supported",
+      "evidence_tests": ["test_rating_feedback_and_glossary_writeback_require_explicit_user_actions"]
+    },
+    {
+      "id": "self_iteration_mode",
+      "name": "Self Iteration Mode",
+      "status": "supported",
+      "evidence_tests": ["test_self_iteration_requires_validation_and_caps_at_three_rounds"]
+    },
+    {
+      "id": "meta_policy_agent",
+      "name": "MetaPolicyAgent",
+      "status": "supported",
+      "evidence_tests": ["test_meta_policy_uses_rating_special_risk_budget_and_validation"]
+    },
+    {
+      "id": "human_confirmation_gate",
+      "name": "Human Confirmation Gate",
+      "status": "supported",
+      "evidence_tests": ["test_local_mode_keeps_dual_provider_mdwc_and_human_gate"]
+    },
+    {
+      "id": "glossary",
+      "name": "Glossary",
+      "status": "supported",
+      "evidence_tests": ["test_rating_feedback_and_glossary_writeback_require_explicit_user_actions"]
+    },
+    {
+      "id": "special_mark",
+      "name": "Special Mark",
+      "status": "supported",
+      "evidence_tests": ["test_rating_feedback_and_glossary_writeback_require_explicit_user_actions"]
+    },
+    {
+      "id": "user_correction_feedback",
+      "name": "User Correction Feedback",
+      "status": "supported",
+      "evidence_tests": ["test_rating_feedback_and_glossary_writeback_require_explicit_user_actions"]
+    },
+    {
+      "id": "rating_feedback",
+      "name": "Rating Feedback",
+      "status": "supported",
+      "evidence_tests": ["test_rating_feedback_and_glossary_writeback_require_explicit_user_actions"]
+    },
+    {
+      "id": "history",
+      "name": "History",
+      "status": "supported",
+      "evidence_tests": ["test_product_surface_languages_history_settings_and_api_key_safety"]
+    },
+    {
+      "id": "settings",
+      "name": "Settings",
+      "status": "supported",
+      "evidence_tests": ["test_product_surface_languages_history_settings_and_api_key_safety"]
+    },
+    {
+      "id": "i18n",
+      "name": "i18n",
+      "status": "supported",
+      "evidence_tests": ["test_product_surface_languages_history_settings_and_api_key_safety"]
+    },
+    {
+      "id": "api_key_safety",
+      "name": "API Key Safety",
+      "status": "supported",
+      "evidence_tests": ["test_product_surface_languages_history_settings_and_api_key_safety"]
+    }
+  ]
+}
+

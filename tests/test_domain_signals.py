@@ -9,6 +9,7 @@ if str(SRC) not in sys.path:
 
 
 from consensus_translation.domain_signals import extract_domain_signals
+from consensus_translation.topic_taxonomy import TOPIC_TAXONOMY
 
 
 def test_extract_domain_signals_identifies_myth_history_and_science_with_hits():
@@ -22,6 +23,11 @@ def test_extract_domain_signals_identifies_myth_history_and_science_with_hits():
         "history": 1,
         "science": 1,
     }
+    assert result["topic_audit_categories"] == {
+        "history": "historical_context",
+        "myth": "lore",
+        "science": "technical_accuracy",
+    }
 
 
 def test_extract_domain_signals_is_deterministic_and_bounded_for_unknown_input():
@@ -33,3 +39,11 @@ def test_extract_domain_signals_is_deterministic_and_bounded_for_unknown_input()
     assert first == second
     assert first["domain_tags"] == []
     assert first["domain_hits"] == {"myth": 0, "history": 0, "science": 0}
+
+
+def test_topic_taxonomy_exposes_mvp_registry_metadata():
+    topics = {entry.topic_id: entry for entry in TOPIC_TAXONOMY}
+
+    assert set(topics) == {"history", "myth", "science"}
+    assert topics["myth"].risk_level == "high"
+    assert "terminology" in topics["science"].provider_hints

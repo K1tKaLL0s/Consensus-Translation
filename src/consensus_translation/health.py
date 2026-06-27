@@ -3,6 +3,24 @@ import importlib.util
 from consensus_translation.workflows import run_local_job
 
 
+class _HealthCheckEngine:
+    def translate(
+        self,
+        text: str,
+        source_lang: str,
+        target_lang: str,
+    ) -> tuple[str, float]:
+        return (f"{target_lang}:{text}", 0.9)
+
+
+def _health_engine_a() -> _HealthCheckEngine:
+    return _HealthCheckEngine()
+
+
+def _health_engine_b(_release_profile: str) -> _HealthCheckEngine:
+    return _HealthCheckEngine()
+
+
 def health_report() -> dict[str, dict[str, object]]:
     streamlit_available = importlib.util.find_spec("streamlit") is not None
     l1_detail = (
@@ -12,7 +30,14 @@ def health_report() -> dict[str, dict[str, object]]:
     )
 
     try:
-        l2_result = run_local_job("service-check", "zh", "en", "health")
+        l2_result = run_local_job(
+            "service-check",
+            "zh",
+            "en",
+            "health",
+            engine_a_factory=_health_engine_a,
+            engine_b_factory=_health_engine_b,
+        )
         l2_ok = bool(l2_result.get("contract"))
         l2_detail = "workflow service check passed" if l2_ok else "workflow service missing contract"
     except Exception as exc:
@@ -20,7 +45,14 @@ def health_report() -> dict[str, dict[str, object]]:
         l2_detail = f"workflow service check failed: {exc}"
 
     try:
-        l3_result = run_local_job("健康检查文本。", "zh", "en", "science")
+        l3_result = run_local_job(
+            "health-check-text",
+            "zh",
+            "en",
+            "science",
+            engine_a_factory=_health_engine_a,
+            engine_b_factory=_health_engine_b,
+        )
         l3_ok = bool(l3_result.get("final_text"))
         l3_detail = (
             "local workflow produced final text"
