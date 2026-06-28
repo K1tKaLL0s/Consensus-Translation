@@ -59,6 +59,7 @@ from consensus_translation.agent_runtime import (
     resolve_comet_model_storage_path,
     resolve_tesseract_command,
 )
+from consensus_translation.services.finalize_service import FinalizeService
 
 
 @dataclass(frozen=True)
@@ -104,6 +105,10 @@ class DesktopAgentController:
         self.evaluator = evaluator
         self.store = store
         self.lexicon_store = lexicon_store or store
+        self.finalize_service = FinalizeService(
+            agent_store=self.store,
+            lexicon_store=self.lexicon_store,
+        )
         self.input_plugins = input_plugins or default_input_plugin_registry(
             tesseract_command=self._resolved_tesseract_command(),
             default_ocr_lang=self.config.ocr_language,
@@ -536,12 +541,7 @@ class DesktopAgentController:
         return getter(run_id)
 
     def confirm_run(self, run_id: str) -> bool:
-        if self.store is None:
-            return False
-        confirmer = getattr(self.store, "confirm_agent_run", None)
-        if confirmer is None:
-            return False
-        return bool(confirmer(run_id))
+        return self.finalize_service.confirm_run(run_id)
 
     def list_pending_lexicon_updates(
         self,
@@ -556,13 +556,7 @@ class DesktopAgentController:
         return list(lister(confirmed=False, run_id=run_id))
 
     def confirm_lexicon_update(self, event_id: int) -> bool:
-        active_store = self.lexicon_store or self.store
-        if active_store is None:
-            return False
-        confirmer = getattr(active_store, "confirm_revision_event_by_id", None)
-        if confirmer is None:
-            return False
-        return bool(confirmer(event_id))
+        return self.finalize_service.confirm_lexicon_update(event_id)
 
     def export_topic_lexicon(self, topic: str | None = None) -> dict[str, dict[str, str]]:
         active_store = self.lexicon_store or self.store

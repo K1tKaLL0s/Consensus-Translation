@@ -213,3 +213,116 @@ def test_project_and_lexicon_pages_render_controller_state(qtbot, qt_service, tm
 
     assert lexicon_page.pending_list.count() == 0
     assert "Leviathan" in lexicon_page.export_view.toPlainText()
+
+
+def test_history_and_settings_pages_use_service_state(qtbot, qt_service, tmp_path):
+    window = MainWindow(controller=qt_service, data_root=tmp_path)
+    qtbot.addWidget(window)
+    settings_page = window.page("设置")
+    history_page = window.page("历史")
+
+    settings = qt_service.load_user_settings().with_changes(
+        default_source_language="en",
+        default_target_language="ja",
+        default_mode="learning",
+        budget_limit=2.5,
+        auto_save_history=False,
+    )
+    qt_service.save_user_settings(settings)
+    settings_page.refresh()
+
+    assert settings_page.budget_limit_input.value() == 2.5
+    assert settings_page.auto_save_history_checkbox.isChecked() is False
+
+    qt_service.save_translation_history(
+        source_text="Leviathan wakes",
+        translated_text="リヴァイアサンが目覚める",
+        source_language="en",
+        target_language="ja",
+        topic="myth",
+        mode="learning",
+        run_id="run-history-1",
+        workflow_status="awaiting_human_confirmation",
+        workflow_steps=("workflow:localTranslating", "workflow:waitingHumanConfirmation"),
+        consensus_score=0.71,
+        confidence_level="medium",
+        conflicts=("candidate_divergence",),
+        arbitration_reason="localProviderA kept higher confidence overlap",
+        requires_human_review=True,
+    )
+    history_page.refresh()
+
+    assert history_page.history_list.count() == 1
+    assert "run-history-1" in history_page.history_list.item(0).text()
+
+    qt_service.clear_translation_history()
+    history_page.refresh()
+
+    assert history_page.history_list.count() == 0
+
+
+def test_history_page_refills_registered_workbench_page(qtbot, qt_service, tmp_path):
+    from consensus_translation.desktop_qt.navigation import NAVIGATION_LABELS
+
+    window = MainWindow(controller=qt_service, data_root=tmp_path)
+    qtbot.addWidget(window)
+    workbench_label = NAVIGATION_LABELS[2]
+    history_label = NAVIGATION_LABELS[8]
+    workbench_page = window.page(workbench_label)
+    history_page = window.page(history_label)
+
+    qt_service.save_translation_history(
+        source_text="Leviathan wakes",
+        translated_text="JP:Leviathan wakes",
+        source_language="en",
+        target_language="ja",
+        topic="myth",
+        mode="learning",
+        run_id="run-history-load",
+        workflow_status="awaiting_human_confirmation",
+    )
+    history_page.refresh()
+    history_page.history_list.setCurrentRow(0)
+
+    history_page.use_selected()
+
+    assert window.current_page() is workbench_page
+    assert workbench_page.source_editor.toPlainText() == "Leviathan wakes"
+    assert workbench_page.result_editor.toPlainText() == "JP:Leviathan wakes"
+    assert workbench_page.source_lang_input.text() == "en"
+    assert workbench_page.target_lang_input.text() == "ja"
+    assert workbench_page.topic_input.text() == "myth"
+    assert workbench_page.mode_input.currentText() == "learning"
+    assert workbench_page._last_run_id == "run-history-load"
+
+
+def test_qt_service_imports_exports_lexicon_and_skips_rating_without_record(
+    qt_service,
+    tmp_path,
+):
+    store = qt_service.controller.store
+    store.upsert_lexicon_entry(
+        "release-test",
+        "terms",
+        "Aether Core",
+        "エーテルコア",
+        note="approved spelling",
+        confidence=0.94,
+        entry_source="manual_edit",
+        confirmed_by_user=True,
+        is_special=True,
+    )
+    export_path = tmp_path / "lexicon-export.json"
+
+    qt_service.export_lexicon_to_file(export_path)
+    imported_service = DesktopApplicationService(data_root=tmp_path / "imported")
+    counts = imported_service.import_lexicon_from_file(export_path)
+
+    assert counts == {"terms": 1, "phrases": 0, "style_rules": 0}
+    imported_entries = imported_service.controller.store.export_all_lexicon_entries()
+    imported_term = imported_entries["release-test"]["terms"]["Aether Core"]
+    assert imported_term["target"] == "\u30a8\u30fc\u30c6\u30eb\u30b3\u30a2"
+    assert imported_term["is_special"] is True
+
+    assert qt_service.skip_translation_rating("run-without-rating") is None
+    assert store.list_translation_ratings() == []

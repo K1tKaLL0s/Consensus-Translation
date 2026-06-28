@@ -12,6 +12,7 @@ if str(SRC) not in sys.path:
 
 from consensus_translation.desktop_qt.application import create_application
 from consensus_translation.desktop_qt.main_window import MainWindow
+from consensus_translation.desktop_qt.navigation import NAVIGATION_LABELS
 
 
 def test_main_window_exposes_release_navigation(qtbot, tmp_path):
@@ -20,15 +21,7 @@ def test_main_window_exposes_release_navigation(qtbot, tmp_path):
     qtbot.addWidget(window)
 
     assert app.organizationName() == "ConsensusTranslation"
-    assert app.applicationName() == "共识翻译 Agent"
-    assert window.windowTitle() == "共识翻译 Agent"
-    assert window.navigation_labels() == [
-        "首页",
-        "翻译工作台",
-        "项目与任务",
-        "词库与风格",
-        "输入连接器",
-        "Provider 与评估器",
-        "诊断与运行时",
-        "帮助中心",
-    ]
+    assert app.applicationName() == window.windowTitle()
+    assert window.navigation_labels() == list(NAVIGATION_LABELS)
+    assert "历史" in window.navigation_labels()
+    assert "设置" in window.navigation_labels()

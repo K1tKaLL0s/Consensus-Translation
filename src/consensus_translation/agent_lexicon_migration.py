@@ -7,6 +7,7 @@ from pathlib import Path
 
 from consensus_translation.agent_store import AgentRunStore
 from consensus_translation.desktop_agent_app import default_desktop_store_path
+from consensus_translation.services.finalize_service import FinalizeService
 
 
 def default_legacy_lexicon_path() -> Path:
@@ -36,7 +37,7 @@ def migrate_legacy_json_lexicon(
     source = Path(source_path) if source_path is not None else default_legacy_lexicon_path()
     target_db = Path(db_path) if db_path is not None else default_desktop_store_path()
     store = AgentRunStore(target_db)
-    imported_counts = store.import_json_lexicon(source)
+    imported_counts = FinalizeService(lexicon_store=store).import_lexicon_from_file(source)
     return LexiconMigrationReport(
         source_path=source,
         db_path=target_db,

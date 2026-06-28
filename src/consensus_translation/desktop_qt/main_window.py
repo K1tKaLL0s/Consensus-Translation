@@ -32,11 +32,14 @@ from consensus_translation.desktop_qt.navigation import (
 from consensus_translation.desktop_qt.pages.connectors import ConnectorsPage
 from consensus_translation.desktop_qt.pages.diagnostics import DiagnosticsPage
 from consensus_translation.desktop_qt.pages.help import HelpPage
+from consensus_translation.desktop_qt.pages.history import HistoryPage
 from consensus_translation.desktop_qt.pages.home import HomePage
 from consensus_translation.desktop_qt.pages.lexicon import LexiconPage
 from consensus_translation.desktop_qt.pages.projects import ProjectsPage
 from consensus_translation.desktop_qt.pages.providers import ProvidersPage
+from consensus_translation.desktop_qt.pages.settings import SettingsPage
 from consensus_translation.desktop_qt.pages.workbench import WorkbenchPage
+from consensus_translation.desktop_qt.react_workspace import ReactWorkspacePage
 
 
 class PlaceholderPage(QWidget):
@@ -63,12 +66,15 @@ class PlaceholderPage(QWidget):
 
 PAGE_TYPES: tuple[type[QWidget], ...] = (
     HomePage,
+    ReactWorkspacePage,
     WorkbenchPage,
     ProjectsPage,
     LexiconPage,
     ConnectorsPage,
     ProvidersPage,
     DiagnosticsPage,
+    HistoryPage,
+    SettingsPage,
     HelpPage,
 )
 

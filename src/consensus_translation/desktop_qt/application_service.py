@@ -10,6 +10,7 @@ from consensus_translation.agent_diagnostics import format_diagnostic_lines
 from consensus_translation.agent_provider_smoke import format_provider_smoke_lines
 from consensus_translation.agent_store import AgentRunStore
 from consensus_translation.agent_inputs import load_agent_input
+from consensus_translation.agent_continuation import ContextManagedTranslationResult
 from consensus_translation.desktop_agent_app import (
     DesktopAgentController,
     DesktopAgentConfig,
@@ -17,6 +18,15 @@ from consensus_translation.desktop_agent_app import (
     default_desktop_store_path,
     format_remote_preflight_lines,
 )
+from consensus_translation.desktop_qt.history_store import (
+    TranslationHistoryRecord,
+    TranslationHistoryStore,
+)
+from consensus_translation.desktop_qt.settings_store import (
+    UserSettings,
+    UserSettingsStore,
+)
+from consensus_translation.services.finalize_service import FinalizeService
 
 
 @dataclass(frozen=True)
@@ -43,12 +53,21 @@ class DesktopApplicationService:
             if data_root is not None
             else default_desktop_credentials_path()
         )
+        self.settings_store = UserSettingsStore(self.data_root / "user_settings.json")
+        self.history_store = TranslationHistoryStore(
+            self.data_root / "translation_history.json"
+        )
         self.controller = controller or DesktopAgentController(
             store=AgentRunStore(self.data_root / "agent.sqlite3")
             if data_root is not None
             else AgentRunStore(default_desktop_store_path())
         )
-        self._last_translation = None
+        self.finalize_service = FinalizeService(
+            agent_store=self.controller.store,
+            lexicon_store=self.controller.lexicon_store or self.controller.store,
+            history_store=self.history_store,
+        )
+        self._last_translation: ContextManagedTranslationResult | None = None
 
     @classmethod
     def from_existing(
@@ -91,6 +110,8 @@ class DesktopApplicationService:
         )
         result = self.controller.translate_text(text.strip())
         self._last_translation = result
+        if self.load_user_settings().auto_save_history:
+            self._save_history_for_result(text.strip(), result)
         run = result.initial_task.run
         run_id = run.contract.run_id if run is not None else ""
         status = run.contract.status.value if run is not None else str(result.verification.get("status", ""))
@@ -141,20 +162,148 @@ class DesktopApplicationService:
             base_name=base_name,
         )
 
+    def load_user_settings(
+        self,
+        browser_language: str | None = None,
+    ) -> UserSettings:
+        return self.settings_store.load(browser_language=browser_language)
+
+    def save_user_settings(self, settings: UserSettings) -> None:
+        self.settings_store.save(settings)
+
+    def save_translation_history(
+        self,
+        *,
+        source_text: str,
+        translated_text: str,
+        source_language: str,
+        target_language: str,
+        topic: str = "",
+        mode: str = "",
+        run_id: str = "",
+        workflow_status: str = "",
+        workflow_steps: tuple[str, ...] = (),
+        consensus_score: float | None = None,
+        confidence_level: str = "",
+        conflicts: tuple[str, ...] = (),
+        arbitration_reason: str = "",
+        requires_human_review: bool = False,
+        rating: int | None = None,
+        rating_issue_tags: tuple[str, ...] = (),
+        rating_comment: str = "",
+    ) -> TranslationHistoryRecord:
+        return self.finalize_service.commit_translation_history(
+            source_text=source_text,
+            translated_text=translated_text,
+            source_language=source_language,
+            target_language=target_language,
+            topic=topic,
+            mode=mode,
+            run_id=run_id,
+            workflow_status=workflow_status,
+            workflow_steps=workflow_steps,
+            consensus_score=consensus_score,
+            confidence_level=confidence_level,
+            conflicts=conflicts,
+            arbitration_reason=arbitration_reason,
+            requires_human_review=requires_human_review,
+            rating=rating,
+            rating_issue_tags=rating_issue_tags,
+            rating_comment=rating_comment,
+        )
+
+    def _save_history_for_result(
+        self,
+        source_text: str,
+        result: ContextManagedTranslationResult,
+    ) -> None:
+        run = result.initial_task.run
+        if run is None:
+            self.save_translation_history(
+                source_text=source_text,
+                translated_text=result.final_text,
+                source_language=self.controller.config.source_lang,
+                target_language=self.controller.config.target_lang,
+                topic=self.controller.config.topic,
+                mode=self.controller.config.mode,
+            )
+            return
+        workflow_steps = tuple(
+            item for item in run.contract.trace if str(item).startswith("workflow:")
+        )
+        self.save_translation_history(
+            source_text=source_text,
+            translated_text=result.final_text,
+            source_language=self.controller.config.source_lang,
+            target_language=self.controller.config.target_lang,
+            topic=self.controller.config.topic,
+            mode=self.controller.config.mode,
+            run_id=run.contract.run_id,
+            workflow_status=run.contract.status.value,
+            workflow_steps=workflow_steps,
+            consensus_score=run.decision.final_score,
+            confidence_level=run.decision.confidence_level,
+            conflicts=tuple(run.decision.conflict_points),
+            arbitration_reason=run.decision.arbitration_reason,
+            requires_human_review=run.decision.requires_human_review,
+        )
+
+    def submit_translation_rating(
+        self,
+        *,
+        source_text: str,
+        final_translation: str,
+        rating: int,
+        issue_tags: tuple[str, ...] = (),
+        dimension_scores: dict[str, float] | None = None,
+        comment: str = "",
+    ):
+        if self._last_translation is None or self._last_translation.initial_task.run is None:
+            raise ValueError("no translation run to rate")
+        run = self._last_translation.initial_task.run
+        return self.finalize_service.submit_rating(
+            run=run,
+            mode=self.controller.config.mode,
+            source_language=self.controller.config.source_lang,
+            target_language=self.controller.config.target_lang,
+            topic=self.controller.config.topic,
+            source_text=source_text,
+            final_translation=final_translation,
+            rating=rating,
+            issue_tags=tuple(issue_tags),
+            dimension_scores=dimension_scores,
+            comment=comment,
+        )
+
+    def skip_translation_rating(self, run_id: str) -> None:
+        return self.finalize_service.skip_rating(run_id)
+
+    def list_translation_history(self) -> list[TranslationHistoryRecord]:
+        return self.history_store.list_recent()
+
+    def clear_translation_history(self) -> None:
+        self.history_store.clear()
+
     def list_runs(self) -> list[dict[str, object]]:
         return self.controller.list_audit_runs()
 
     def confirm_run(self, run_id: str) -> bool:
-        return self.controller.confirm_run(run_id)
+        return self.finalize_service.confirm_run(run_id)
 
     def list_pending_lexicon_updates(self) -> list[dict[str, object]]:
         return self.controller.list_pending_lexicon_updates()
 
     def confirm_lexicon_update(self, event_id: int) -> bool:
-        return self.controller.confirm_lexicon_update(event_id)
+        return self.finalize_service.confirm_lexicon_update(event_id)
 
     def export_current_topic_lexicon(self) -> dict[str, dict[str, str]]:
         return self.controller.export_topic_lexicon(self.controller.config.topic)
+
+    def export_lexicon_to_file(self, path: str | Path) -> Path:
+        return self.finalize_service.export_lexicon_to_file(path)
+
+    def import_lexicon_from_file(self, path: str | Path) -> dict[str, int]:
+        return self.finalize_service.import_lexicon_from_file(path)
 
     def save_provider_settings(
         self,

@@ -4,9 +4,29 @@ __pycache__/
 .pytest_cache/
 .pytest_tmp_runtime/
 .pytest_localappdata/
+.mypy_cache/
+.ruff_cache/
 .acceptance/
 .runtime/
 build/
 dist/
 release/
 data/
+node_modules/
+UI design/High-Fidelity Translation Software UI/node_modules/
+UI design/High-Fidelity Translation Software UI/dist/
+coverage/
+htmlcov/
+.coverage
+*.log
+*.tmp
+*.bak
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+UI design/High-Fidelity Translation Software UI.zip
+UI design/High-Fidelity Translation Software UI/src/imports/ChatGPT_Image_2026_6_23__16_59_53.png
+UI design/High-Fidelity Translation Software UI/src/imports/ChatGPT_Image_2026_6_23__17_00_08.png

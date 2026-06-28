@@ -106,7 +106,11 @@ def test_desktop_controller_records_recent_file_after_translation(tmp_path):
     source_file.write_text("alpha beta", encoding="utf-8")
     store = AgentRunStore(tmp_path / "agent.sqlite3")
     controller = DesktopAgentController(
-        config=DesktopAgentConfig(source_lang="en", target_lang="zh"),
+        config=DesktopAgentConfig(
+            source_lang="en",
+            target_lang="zh",
+            allow_mock_providers=True,
+        ),
         store=store,
         project_id="novel-a",
     )
